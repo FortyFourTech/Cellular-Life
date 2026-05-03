@@ -12,8 +12,8 @@ Shader "Simulation/World"
         _SeedColor("Seed Color", Color) = (1.0,1.0,0.0,1)
         _OrgThreshold("Organics Threshold", Float) = 1.0
         _NrgThreshold("Energy Threshold", Float) = 1.0
-        _Width("Width", Float) = 1.0
-        _Height("Height", Float) = 1.0
+        _Width("Width", Integer) = 1024
+        _Height("Height", Integer) = 1024
     }
     SubShader
     {
@@ -28,6 +28,7 @@ Shader "Simulation/World"
             #pragma fragment frag
             #include "UnityCG.cginc"
             #include "Defines.hlsl"
+            // #include "Common.hlsl"
 
             sampler2D _SoilTex;
             fixed4 _OrganicsColor;
@@ -40,8 +41,8 @@ Shader "Simulation/World"
             fixed4 _WoodColor;
             fixed4 _SproutColor;
             fixed4 _SeedColor;
-            float _Width;
-            float _Height;
+            int _Width;
+            int _Height;
             float _ShowOrganics;
             float _ShowEnergy;
 
@@ -66,7 +67,8 @@ Shader "Simulation/World"
                 fixed4 col = fixed4(max(colOrg, colEn), 1);
 
                 // highlight if organics exceed threshold
-                Cell c = _Cells[i.uv.y * _Height * _Width + i.uv.x * _Width];
+                uint cellIdx = floor(i.uv.y * _Height * _Width) + floor(i.uv.x * _Width);
+                Cell c = _Cells[cellIdx];
                 uint cellType = c.cellType;
                 if (cellType == 1) col = _LeafColor; // leaf green
                 if (cellType == 2) col = _RootColor; // root red
@@ -75,6 +77,12 @@ Shader "Simulation/World"
                 if (cellType == 5) col = _SproutColor; // sprout
                 if (cellType == 6) col = _SeedColor; // seed
                 // return float4(1,0,0,1);
+                float2 cellCenter = float2(
+                    ceil(i.uv.x * _Width) / _Width,
+                    ceil(i.uv.y * _Height) / _Height
+                );
+                // return float4(i.uv.xy,0,1);
+                // return float4(cellCenter,0,1);
                 return col;
                 // return float4(1,1,1,1);
             }

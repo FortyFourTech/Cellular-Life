@@ -62,6 +62,12 @@ public class WorldSimulation : MonoBehaviour
     public RenderTexture SoilRTTarget => ping ? soilRT0 : soilRT1;
 
     public ComputeBuffer CellsBuffer => cellsBuffer;
+    public ComputeBuffer GenomesBuffer => genomesBuffer;
+
+    public CellData[] CellsData;
+    public GenomeData[] GenomesData;
+
+    public GenomeData GetGenome(int id) => GenomesData[id]; // GenomeData[CellsData[idx].genomeIdx
 
     public uint CellsNum => stats[0];
     public uint LeavesNum => stats[1];
@@ -202,6 +208,49 @@ public class WorldSimulation : MonoBehaviour
         initShader.Dispatch(cellsKernelIdx, cx, cy, 1);
 
         isStarted = true;
+
+        // get data
+        AsyncGPUReadback.Request(statsBuffer, (AsyncGPUReadbackRequest request) =>
+        {
+            if (request.hasError) {
+                Debug.LogError("Ошибка чтения с GPU");
+                return;
+            }
+
+            var data = request.GetData<uint>();
+
+            // Debug.Log(Data[63].value);
+            // submit updated date
+            stats = data.ToArray();
+        });
+
+        AsyncGPUReadback.Request(cellsBuffer, (AsyncGPUReadbackRequest request) =>
+        {
+            if (request.hasError) {
+                Debug.LogError("Ошибка чтения с GPU");
+                return;
+            }
+
+            var data = request.GetData<CellData>();
+
+            // Debug.Log(Data[63].value);
+            // submit updated date
+            CellsData = data.ToArray();
+        });
+
+        AsyncGPUReadback.Request(genomesBuffer, (AsyncGPUReadbackRequest request) =>
+        {
+            if (request.hasError) {
+                Debug.LogError("Ошибка чтения с GPU");
+                return;
+            }
+
+            var data = request.GetData<GenomeData>();
+
+            // Debug.Log(Data[63].value);
+            // submit updated date
+            GenomesData = data.ToArray();
+        });
     }
 
     public void InitWorld()
@@ -328,6 +377,34 @@ public class WorldSimulation : MonoBehaviour
             stats = data.ToArray();
         });
 
+        AsyncGPUReadback.Request(cellsBuffer, (AsyncGPUReadbackRequest request) =>
+        {
+            if (request.hasError) {
+                Debug.LogError("Ошибка чтения с GPU");
+                return;
+            }
+
+            var data = request.GetData<CellData>();
+
+            // Debug.Log(Data[63].value);
+            // submit updated date
+            CellsData = data.ToArray();
+        });
+
+        AsyncGPUReadback.Request(genomesBuffer, (AsyncGPUReadbackRequest request) =>
+        {
+            if (request.hasError) {
+                Debug.LogError("Ошибка чтения с GPU");
+                return;
+            }
+
+            var data = request.GetData<GenomeData>();
+
+            // Debug.Log(Data[63].value);
+            // submit updated date
+            GenomesData = data.ToArray();
+        });
+
         ReversePing();
     }
 
@@ -338,8 +415,8 @@ public class WorldSimulation : MonoBehaviour
         for (int i = 0; i < cellCapacity; ++i) { arr[i].cellType = 0; arr[i].energy = 0; }
         // add a Leaf in center
         int midx = width/2, midy = height/2;
-        arr[midy * height + midx] = new CellData() { cellType = 1, energy = 1.0f }; // leaf
-        arr[midy * height + midx + 1] = new CellData() { cellType = 4, energy = 0.5f }; // wood
+        arr[midy * height + midx] = new CellData() { cellType = CellType.Leaf, energy = 1.0f };
+        arr[midy * height + midx + 1] = new CellData() { cellType = CellType.Wood, energy = 0.5f };
         cellsBuffer.SetData(arr);
     }
 

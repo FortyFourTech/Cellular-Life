@@ -34,22 +34,24 @@ void DiffuseEnergyKernel(uint3 id : SV_DispatchThreadID)
     int2 pos = int2(id.x, id.y);
     if (pos.x >= _Width || pos.y >= _Height) return;
 
-    float2 sum = float2(0,0);
-    int count = 0;
-    for (int oy=-1; oy<=1; ++oy) {
-        for (int ox=-1; ox<=1; ++ox) {
-            int nx = (pos.x + ox + _Width) % _Width;
-            int ny = (pos.y + oy + _Height) % _Height;
-            float2 v = _SoilTexRead[int2(nx,ny)];
-            sum += v;
-            count++;
-        }
-    }
-    float2 avg = sum / count;
-    // simple relaxation toward neighbor average controlled by diffusion rate
+    // float2 sum = float2(0,0);
+    // int count = 0;
+    // for (int oy=-1; oy<=1; ++oy) {
+    //     for (int ox=-1; ox<=1; ++ox) {
+    //         int nx = (pos.x + ox + _Width) % _Width;
+    //         int ny = (pos.y + oy + _Height) % _Height;
+    //         float2 v = _SoilTexRead[int2(nx,ny)];
+    //         sum += v;
+    //         count++;
+    //     }
+    // }
+    // float2 avg = sum / count;
+    // // simple relaxation toward neighbor average controlled by diffusion rate
     float2 cur = _SoilTexRead[pos];
-    float2 next = lerp(cur, avg, saturate(_DiffusionRate));
-    next.x = cur.x;
+    // float2 next = lerp(cur, avg, saturate(_DiffusionRate));
+    // next.x = cur.x;
+
+    float2 next = float2(cur.x, lerp(cur.y, 0.5, 0.25));
     _SoilTexWrite[pos] = next;
 }
 
@@ -170,7 +172,7 @@ void DeathKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(32,32,1)]
 void BehaviorKernel(uint3 id : SV_DispatchThreadID)
 {
-    uint cellIdx = id.y*_Width + id.x;
+    uint cellIdx = PosToIdx(id.xy);
     Cell c = _Cells[cellIdx];
 
     if (c.cellType != CELLTYPE_SPROUT) return; // only sprouts

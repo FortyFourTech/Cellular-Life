@@ -192,13 +192,18 @@ bool CommandGrow(in uint2 cellPos) {
     bool growed = false;
 
     for (int i = 0; i < 4; i++) {
-        if (directionTypes[i] > 6 || _Cells[cellIdx].energy < ENERGY_GROW) continue;
-
+        uint typeToCreate = directionTypes[i];
         uint createDir = RotateDir(i, cellDir);
         uint2 targetCoord = i == 2 ? cellPos : ShiftCoord(cellPos, createDir);
+        uint targetIdx = PosToIdx(targetCoord);
+        if (typeToCreate == 0 || typeToCreate > CELLTYPE_SEED
+            || _Cells[cellIdx].energy < ENERGY_GROW
+            || _Cells[targetIdx].cellType != 0
+        ) continue;
+
         // has enough energy?
-        CreateCell(targetCoord, directionTypes[i], createDir, RotateDir(createDir, 2));
-        SetIntBit(_Cells[cellIdx].energyFlow, directionTypes[i] == CELLTYPE_SPROUT || directionTypes[i] == CELLTYPE_SEED, createDir);
+        CreateCell(targetCoord, typeToCreate, createDir, RotateDir(createDir, 2));
+        SetIntBit(_Cells[cellIdx].energyFlow, typeToCreate == CELLTYPE_SPROUT || typeToCreate == CELLTYPE_SEED, createDir);
 
         growed = true;
     }

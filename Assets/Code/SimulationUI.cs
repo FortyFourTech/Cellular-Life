@@ -1,5 +1,7 @@
 using System;
 using UnityEngine;
+using System.Reflection;
+using UnityEngine.UI;
 
 // Simple IMGUI-based simulation controller. Provides controls and stubs
 // for features to be implemented later. Does not modify other classes.
@@ -7,6 +9,7 @@ public class SimulationUI : MonoBehaviour
 {
     public WorldSimulation world;
     public WorldRenderer wRenderer;
+    public UIPanZoom panZoom;
 
     // Simulation controls
     public bool isPaused = false;
@@ -41,12 +44,26 @@ public class SimulationUI : MonoBehaviour
     // Internal
     Vector2 scroll;
     float lastUpdateTime;
+    // Cell inspector
+    bool inspectorEnabled = true;
+    bool haveInspectedCell = false;
+    CellData inspectedCell;
+    GenomeData inspectedGenome;
+    string genomeReadError = "";
+    // optional pan/zoom helper
+    RawImage panRawImage;
 
     void Reset()
     {
         // try to auto-assign world
         if (world == null) world = FindAnyObjectByType<WorldSimulation>();
         if (!wRenderer) wRenderer = FindAnyObjectByType<WorldRenderer>();
+        // try to find UIPanZoom (if a UI RawImage displays the world)
+        if (!panZoom) panZoom = GetComponentInChildren<UIPanZoom>();
+    }
+
+    private void Start() {
+        if (panZoom != null) panRawImage = panZoom.GetComponent<RawImage>();
     }
 
     void Update()
@@ -171,6 +188,219 @@ public class SimulationUI : MonoBehaviour
 
         GUILayout.EndScrollView();
         GUILayout.EndArea();
+
+        // Right-side inspector for cell under cursor
+        DrawCellInspectorPanel();
+    }
+
+    void DrawCellInspectorPanel()
+    {
+        const float pad = 8f;
+        float inspectorW = 320f;
+        Rect area = new Rect(Screen.width - pad - inspectorW, pad, inspectorW, Screen.height - pad*2);
+        GUILayout.BeginArea(area, GUI.skin.box);
+        GUILayout.Label("Cell Inspector", GUI.skin.label);
+
+        Vector2 mouse = Input.mousePosition;
+        int gx, gy;
+        if (world == null)
+        {
+            GUILayout.Label("No world assigned");
+            GUILayout.EndArea();
+            return;
+        }
+
+        bool inside = ScreenToGrid(mouse, out gx, out gy);
+        if (!inside)
+        {
+            GUILayout.Label("Cursor outside world area");
+            GUILayout.EndArea();
+            return;
+        }
+
+        GUILayout.Label($"Grid: {gx}, {gy}");
+
+        // read cell from GPU
+        ReadCellFromGpu(gx, gy);
+
+        if (!haveInspectedCell)
+        {
+            GUILayout.Label("Failed to read cell data");
+            GUILayout.EndArea();
+            return;
+        }
+
+        // display all fields of CellData
+        GUILayout.Label($"cellType: {inspectedCell.cellType}");
+        GUILayout.Label($"energy: {inspectedCell.energy:F4}");
+        GUILayout.Label($"energyFlow: {inspectedCell.energyFlow}");
+        GUILayout.Label($"parentDir: {inspectedCell.parentDir}");
+        GUILayout.Label($"genomeId: {inspectedCell.genomeId}");
+        GUILayout.Label($"direction: {inspectedCell.direction}");
+        GUILayout.Label($"activeGene: {inspectedCell.activeGene}");
+
+        GUILayout.Space(6);
+        GUILayout.Label("Genome:");
+        genomeReadError = "";
+        if (inspectedCell.genomeId == 0u)
+        {
+            GUILayout.Label("<no genome>");
+        }
+        else
+        {
+            ReadGenomeFromGpu(inspectedCell.genomeId);
+
+            // display genome fields via reflection to avoid access issues
+            var gType = typeof(GenomeData);
+            var fields = gType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            foreach (var f in fields)
+            {
+                object val = f.GetValue(inspectedGenome);
+                if (val == null)
+                {
+                    GUILayout.Label($"{f.Name}: null");
+                    continue;
+                }
+
+                // if it's an array, show length and some preview
+                var arr = val as System.Array;
+                if (arr != null)
+                {
+                    GUILayout.Label($"{f.Name}.Length: {arr.Length}");
+                    int toShow = Math.Min(8, arr.Length);
+                    for (int i = 0; i < toShow; ++i)
+                    {
+                        var el = arr.GetValue(i);
+                        if (el == null) break;
+                        // show element fields
+                        var et = el.GetType();
+                        var efields = et.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                        sb.Append($"[{i}]: ");
+                        foreach (var ef in efields)
+                        {
+                            var v = ef.GetValue(el);
+                            sb.Append($"{ef.Name}={v} ");
+                        }
+                        GUILayout.Label(sb.ToString());
+                    }
+                }
+                else
+                {
+                    GUILayout.Label($"{f.Name}: {val}");
+                }
+            }
+        }
+
+        GUILayout.EndArea();
+    }
+
+    bool ScreenToGrid(Vector2 screenPos, out int gx, out int gy)
+    {
+        gx = gy = 0;
+        if (world == null) return false;
+
+        // If a UIPanZoom + RawImage is present, use its rect and uvRect to map screen->uv
+        if (panZoom != null && panRawImage != null)
+        {
+            RectTransform rt = panRawImage.rectTransform;
+            Vector2 localPoint;
+            Camera cam = null; // assume Screen Space - Overlay
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(rt, screenPos, cam, out localPoint))
+            {
+                return false;
+            }
+
+            Vector2 size = rt.rect.size;
+            if (size.x <= 0 || size.y <= 0) return false;
+
+            Vector2 normalized = new Vector2((localPoint.x + size.x * 0.5f) / size.x, (localPoint.y + size.y * 0.5f) / size.y);
+
+            // get uvRect from RawImage
+            var uv = panRawImage.uvRect;
+            // uv origin is bottom-left; normalized is 0..1 within rect
+            float u = uv.x + normalized.x * uv.width;
+            float v = uv.y + normalized.y * uv.height;
+
+            // wrap UVs so panning repeats texture instead of clamping to edges
+            u = Mathf.Repeat(u, 1f);
+            v = Mathf.Repeat(v, 1f);
+
+            gx = Mathf.Clamp((int)(u * world.width), 0, world.width - 1);
+            gy = Mathf.Clamp((int)(v * world.height), 0, world.height - 1);
+            return true;
+        }
+
+        // fallback: centered square preserving proportions (original behavior)
+        float size2 = Mathf.Min(Screen.width, Screen.height);
+        float left = (Screen.width - size2) * 0.5f;
+        float top = (Screen.height - size2) * 0.5f;
+
+        float mx2 = screenPos.x;
+        float my2 = screenPos.y;
+
+        if (mx2 < left || mx2 > left + size2 || my2 < top || my2 > top + size2) return false;
+
+        float nx = (mx2 - left) / size2;
+        float ny = (my2 - top) / size2;
+
+        gx = Mathf.Clamp((int)(nx * world.width), 0, world.width - 1);
+        gy = Mathf.Clamp((int)(ny * world.height), 0, world.height - 1);
+        return true;
+    }
+
+    void ReadCellFromGpu(int gx, int gy)
+    {
+        haveInspectedCell = false;
+        genomeReadError = "";
+        if (world == null || world.CellsBuffer == null) return;
+        int idx = gy * world.width + gx;
+
+        inspectedCell = world.CellsData[idx];
+        haveInspectedCell = inspectedCell.cellType > 0;
+        return;
+
+        try
+        {
+            var carr = new CellData[1];
+            world.CellsBuffer.GetData(carr, 0, idx, 1);
+            inspectedCell = carr[0];
+            haveInspectedCell = true;
+        }
+        catch (System.Exception ex)
+        {
+            haveInspectedCell = false;
+            genomeReadError = "Error reading cell: " + ex.Message;
+        }
+    }
+
+    void ReadGenomeFromGpu(int genomeId)
+    {
+        if (world == null || world.GenomesBuffer == null) return;
+
+        inspectedGenome = world.GetGenome(genomeId);
+        return;
+
+        // attempt to read genome buffer
+        if (world.GenomesBuffer == null)
+        {
+            GUILayout.Label("Genome buffer not available");
+        }
+        else
+        {
+            try
+            {
+                var gid = (int)inspectedCell.genomeId;
+                var garr = new GenomeData[1];
+                world.GenomesBuffer.GetData(garr, 0, gid, 1);
+                inspectedGenome = garr[0];
+            }
+            catch (System.Exception ex)
+            {
+                genomeReadError = "Error reading genome: " + ex.Message;
+                GUILayout.Label(genomeReadError);
+            }
+        }
     }
 
     void Generate()
@@ -209,12 +439,8 @@ public class SimulationUI : MonoBehaviour
     void ApplyBrushAtScreenPosition(Vector2 screenPos)
     {
         if (world == null) return;
-        // normalize screen to [0..1]
-        float nx = Mathf.Clamp01(screenPos.x / Screen.width);
-        float ny = Mathf.Clamp01(screenPos.y / Screen.height);
-
-        int gx = Mathf.Clamp((int)(nx * world.width), 0, world.width - 1);
-        int gy = Mathf.Clamp((int)(ny * world.height), 0, world.height - 1);
+        int gx, gy;
+        if (!ScreenToGrid(screenPos, out gx, out gy)) return;
 
         int r = Mathf.Max(1, Mathf.CeilToInt(brushRadius));
         float r2 = brushRadius * brushRadius;

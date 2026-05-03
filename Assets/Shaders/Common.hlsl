@@ -56,12 +56,16 @@ uint2 IdxToPos(uint idx) {
 //     return (asuint(data) >> 24) & 0xFF;
 // }
 
-uint GetIntByte(uint data, uint byteIdx) {
-    return (data >> byteIdx * 8) & 0xFF;
+uint MergeByMask(uint a, uint b, uint mask) {
+    return (a & ~mask) | (b & mask);
 }
 
 uint GetIntBit(uint data, uint bitIdx) {
     return (data >> bitIdx) & 1u;
+}
+
+uint GetIntByte(uint data, uint byteIdx) {
+    return (data >> byteIdx * 8) & 0xFF;
 }
 
 uint UnpackInt1(uint data) {
@@ -98,12 +102,12 @@ uint UnpackInt4(uint data) {
 //     container = asfloat(bits);
 // }
 
-void SetIntByte(inout uint container, uint data, uint byteIdx) {
-    container |= (data & 0xff) << (byteIdx * 8);
+void SetIntBit(inout uint container, uint data, uint bitIdx) {
+    container = MergeByMask(container, data << bitIdx, 1u << bitIdx);
 }
 
-void SetIntBit(inout uint container, uint data, uint bitIdx) {
-    container |= (data & 1u) << (bitIdx);
+void SetIntByte(inout uint container, uint data, uint byteIdx) {
+    container = MergeByMask(container, data << (byteIdx * 8), 0xff << (byteIdx * 8));
 }
 
 void PackToInt1(inout uint container, uint data) {
@@ -118,14 +122,6 @@ void PackToInt3(inout uint container, uint data) {
 void PackToInt4(inout uint container, uint data) {
     SetIntByte(container, data, 3);
 }
-
-uint MergeByMask(uint a, uint b, uint mask) {
-    return (a & ~mask) | (b & mask);
-}
-
-uint GetBit(uint value, uint bitIdx) {
-    return (value >> bitIdx) & 1u;
-}
 // #endregion // Packing
 
 // #region Direction
@@ -133,7 +129,7 @@ uint GetBit(uint value, uint bitIdx) {
 // 1 11 ( x, 0) right   right
 // 2 00 ( 0,-y) back    down
 // 3 01 (-x, 0) left    left
-uint RotateDir(in uint baseDir, in uint relDir) {
+uint RotateDir(in uint baseDir, in int relDir) {
     return (baseDir + relDir + 4) % 4;
 }
 

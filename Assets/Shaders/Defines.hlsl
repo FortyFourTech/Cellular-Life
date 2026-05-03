@@ -20,7 +20,6 @@ struct Cell {
     uint parentDir;
     uint genomeId;
     uint direction;
-    uint flags;
     uint activeGene;
     uint pad0;
 };
