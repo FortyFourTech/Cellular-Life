@@ -5,6 +5,7 @@
 #pragma kernel LeafKernel
 #pragma kernel RootKernel
 #pragma kernel AntennaKernel
+#pragma kernel RerouteKernel
 #pragma kernel TransportKernel
 #pragma kernel AbsorptionKernel
 #pragma kernel DeathKernel
@@ -48,6 +49,7 @@ void DiffuseEnergyKernel(uint3 id : SV_DispatchThreadID)
     // simple relaxation toward neighbor average controlled by diffusion rate
     float2 cur = _SoilTexRead[pos];
     float2 next = lerp(cur, avg, saturate(_DiffusionRate));
+    next.x = cur.x;
     _SoilTexWrite[pos] = next;
 }
 
@@ -99,16 +101,40 @@ void AntennaKernel(uint3 id : SV_DispatchThreadID)
 }
 
 [numthreads(32,32,1)]
+void RerouteKernel(uint3 id : SV_DispatchThreadID)
+{
+    uint cellIdx = id.y * _Width + id.x;
+
+    Cell c = _Cells[cellIdx];
+    if (c.cellType != CELLTYPE_WOOD || c.energyFlow > 0 || c.parentDir == 0xffffffff) return; // only wood
+
+    SetIntBit(c.energyFlow, 1, c.parentDir);
+    uint2 parentPos = ShiftCoord(id.xy, c.parentDir);
+    uint parentIdx = PosToIdx(parentPos);
+    SetIntBit(_Cells[parentIdx].energyFlow, 0, RotateDir(c.parentDir, 2));
+
+    _Cells[cellIdx] = c;
+}
+
+[numthreads(32,32,1)]
 void TransportKernel(uint3 id : SV_DispatchThreadID)
 {
-    Cell c = _Cells[id.y*_Width + id.x];
-    if (c.cellType != CELLTYPE_WOOD) return; // only wood transfers in MVP
+    uint2 cellPos = id.xy;
+    uint cellIdx = cellPos.y * _Width + cellPos.x;
+    Cell c = _Cells[cellIdx];
+    if (c.cellType == 0 || c.cellType >=  CELLTYPE_SPROUT) return; // only wood transfers
 
-    // MVP: simple local equalization with neighbors in direction bitmask (not full implementation)
-    // placeholder: small passive loss to neighbors
-    float loss = c.energy * 0.02 * _Timestep;
-    c.energy -= loss;
-    _Cells[id.y*_Width + id.x] = c;
+    for (uint dir = 0; dir < 4; ++dir) {
+        uint2 neighborPos = ShiftCoord(cellPos, dir);
+        uint neighborIdx = neighborPos.y * _Width + neighborPos.x;
+        if (_Cells[neighborIdx].cellType == 0) continue;
+
+        float transformDelta = GetIntBit(c.energyFlow, dir) * max(c.energy - _Cells[neighborIdx].energy, 0) * 0.02 * _Timestep;
+        c.energy -= transformDelta;
+        _Cells[neighborIdx].energy += transformDelta;
+    }
+
+    _Cells[cellIdx] = c;
 }
 
 [numthreads(32,32,1)]
@@ -133,6 +159,7 @@ void DeathKernel(uint3 id : SV_DispatchThreadID)
             || (c.cellType == CELLTYPE_ANTENNA && _SoilTexRead[id.xy].y <= 0)
             || (c.cellType != CELLTYPE_ROOT && _SoilTexRead[id.xy].x > _CriticalOrg)
             || (c.cellType != CELLTYPE_ANTENNA && _SoilTexRead[id.xy].y > _CriticalNrg)
+            || (c.cellType > 0 && c.cellType < CELLTYPE_SPROUT && c.energyFlow == 0 && c.parentDir == 0xffffffff)
             // || (c.cellType == CELLTYPE_WOOD && c.flowDirs = 0)
         )
     ) {

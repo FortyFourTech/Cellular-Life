@@ -34,65 +34,89 @@ uint randInt(uint2 cellPos, float salt)
     return asuint(randFloat(cellPos, salt));
 }
 
+uint PosToIdx(uint2 pos) {
+    return pos.y * _Width + pos.x;
+}
+
+uint2 IdxToPos(uint idx) {
+    return uint2(idx % _Width, idx / _Width);
+}
+
 // #region Packing
-uint UnpackFloat1(float data) {
-    return (asuint(data) >> 0) & 0xFF;
+// uint UnpackFloat1(float data) {
+//     return (asuint(data) >> 0) & 0xFF;
+// }
+// uint UnpackFloat2(float data) {
+//     return (asuint(data) >> 8) & 0xFF;
+// }
+// uint UnpackFloat3(float data) {
+//     return (asuint(data) >> 16) & 0xFF;
+// }
+// uint UnpackFloat4(float data) {
+//     return (asuint(data) >> 24) & 0xFF;
+// }
+
+uint GetIntByte(uint data, uint byteIdx) {
+    return (data >> byteIdx * 8) & 0xFF;
 }
-uint UnpackFloat2(float data) {
-    return (asuint(data) >> 8) & 0xFF;
-}
-uint UnpackFloat3(float data) {
-    return (asuint(data) >> 16) & 0xFF;
-}
-uint UnpackFloat4(float data) {
-    return (asuint(data) >> 24) & 0xFF;
+
+uint GetIntBit(uint data, uint bitIdx) {
+    return (data >> bitIdx) & 1u;
 }
 
 uint UnpackInt1(uint data) {
-    return (data >> 0) & 0xFF;
+    return GetIntByte(data, 0);
 }
 uint UnpackInt2(uint data) {
-    return (data >> 8) & 0xFF;
+    return GetIntByte(data, 1);
 }
 uint UnpackInt3(uint data) {
-    return (data >> 16) & 0xFF;
+    return GetIntByte(data, 2);
 }
 uint UnpackInt4(uint data) {
-    return (data >> 24) & 0xFF;
+    return GetIntByte(data, 3);
 }
 
-void PackToFloat1(inout float container, uint data) {
-    uint bits = asuint(container);
-    bits |= (data << 0);
-    container = asfloat(bits);
+// void PackToFloat1(inout float container, uint data) {
+//     uint bits = asuint(container);
+//     bits |= (data << 0);
+//     container = asfloat(bits);
+// }
+// void PackToFloat2(inout float container, uint data) {
+//     uint bits = asuint(container);
+//     bits |= (data << 8);
+//     container = asfloat(bits);
+// }
+// void PackToFloat3(inout float container, uint data) {
+//     uint bits = asuint(container);
+//     bits |= (data << 16);
+//     container = asfloat(bits);
+// }
+// void PackToFloat4(inout float container, uint data) {
+//     uint bits = asuint(container);
+//     bits |= (data << 24);
+//     container = asfloat(bits);
+// }
+
+void SetIntByte(inout uint container, uint data, uint byteIdx) {
+    container |= (data & 0xff) << (byteIdx * 8);
 }
-void PackToFloat2(inout float container, uint data) {
-    uint bits = asuint(container);
-    bits |= (data << 8);
-    container = asfloat(bits);
-}
-void PackToFloat3(inout float container, uint data) {
-    uint bits = asuint(container);
-    bits |= (data << 16);
-    container = asfloat(bits);
-}
-void PackToFloat4(inout float container, uint data) {
-    uint bits = asuint(container);
-    bits |= (data << 24);
-    container = asfloat(bits);
+
+void SetIntBit(inout uint container, uint data, uint bitIdx) {
+    container |= (data & 1u) << (bitIdx);
 }
 
 void PackToInt1(inout uint container, uint data) {
-    container |= data << 0;
+    SetIntByte(container, data, 0);
 }
 void PackToInt2(inout uint container, uint data) {
-    container |= data << 8;
+    SetIntByte(container, data, 1);
 }
 void PackToInt3(inout uint container, uint data) {
-    container |= data << 16;
+    SetIntByte(container, data, 2);
 }
 void PackToInt4(inout uint container, uint data) {
-    container |= data << 24;
+    SetIntByte(container, data, 3);
 }
 
 uint MergeByMask(uint a, uint b, uint mask) {
@@ -127,17 +151,17 @@ uint2 ShiftCoord(in uint2 inPos, in uint dir) {
 // #endregion // Direction
 
 // #region Genome funcs
-Gene GenerateRandomGene(in uint2 cellPos)
+Gene GenerateRandomGene(in uint2 cellPos, uint geneIdx)
 {
     Gene gene = (Gene)0;
-    gene.growDirections = randInt(cellPos, _Timestamp);
-    gene.conditions = randInt(cellPos, _Timestamp * 2);
-    gene.condParam1 = randFloat(cellPos, _Timestamp * 3);
-    gene.condParam2 = randFloat(cellPos, _Timestamp * 4);
-    gene.condResult = randInt(cellPos, _Timestamp * 5);
-    gene.comGenes = randInt(cellPos, _Timestamp * 6);
-    gene.aloneCommands = randInt(cellPos, _Timestamp * 7);
-    gene.aloneComGenes = randInt(cellPos, _Timestamp * 8);
+    gene.growDirections = randInt(cellPos, _Timestamp + geneIdx);
+    gene.conditions = randInt(cellPos, _Timestamp * 2 + geneIdx);
+    gene.condParam1 = randFloat(cellPos, _Timestamp * 3 + geneIdx);
+    gene.condParam2 = randFloat(cellPos, _Timestamp * 4 + geneIdx);
+    gene.condResult = randInt(cellPos, _Timestamp * 5 + geneIdx);
+    gene.comGenes = randInt(cellPos, _Timestamp * 6 + geneIdx);
+    gene.aloneCommands = randInt(cellPos, _Timestamp * 7 + geneIdx);
+    gene.aloneComGenes = randInt(cellPos, _Timestamp * 8 + geneIdx);
     // TODO: optimize randomization to make less randInt() calls
 
     return gene;
@@ -148,7 +172,7 @@ Genome GenerateRandomGenome(in uint2 cellPos)
     Genome genome = (Genome)0;
     for (int gIdx = 0; gIdx < 32; gIdx++)
     {
-        genome.genes[gIdx] = GenerateRandomGene(cellPos);
+        genome.genes[gIdx] = GenerateRandomGene(cellPos, gIdx);
     }
     genome.cellNum = 0;
 
@@ -238,11 +262,12 @@ void CreateCell(in uint2 targetPos, uint type, uint direction, uint parentDir)
     newCell.genomeId = _Cells[parentIdx].genomeId;
     newCell.parentDir = parentDir;
     newCell.energy = 0.5;
+    SetIntBit(newCell.energyFlow, type != CELLTYPE_SPROUT && type != CELLTYPE_SEED, parentDir);
 
     // TODO: try to mutate
     // only on Sprout or Seed cells
     if ((type == CELLTYPE_SPROUT || type == CELLTYPE_SEED)
-        && (randInt(targetPos, _Timestamp) & 1u)) {
+        && (randInt(targetPos, _Timestamp) & 0xff == 0)) { // 25% to mutate
         uint parentGid = _Cells[parentIdx].genomeId;
         Genome parentGenome = _Genomes[parentGid];
         uint newGid = MutateGenome(targetPos, parentGenome);
@@ -269,12 +294,11 @@ void KillCell(in uint2 cellPos)
         uint2 neighborPos = ShiftCoord(cellPos, toNeighbor);
         uint neighborIdx = neighborPos.y * _Width + neighborPos.x;
 
-        if (_Cells[neighborIdx].cellType == 0
-            || _Cells[neighborIdx].parentDir != fromNeighbor) {
-            continue;
-        }
+        if (_Cells[neighborIdx].cellType == 0) continue;
 
-        _Cells[neighborIdx].parentDir = 0xFFFFFFFF;
+        _Cells[neighborIdx].parentDir = _Cells[neighborIdx].parentDir == fromNeighbor ? 0xFFFFFFFF : _Cells[neighborIdx].parentDir;
+        if (GetIntBit(_Cells[neighborIdx].energyFlow, fromNeighbor))
+            SetIntBit(_Cells[neighborIdx].energyFlow, 0, fromNeighbor);
     }
     // spit energy from the cell to soil
     // spit organics to soil

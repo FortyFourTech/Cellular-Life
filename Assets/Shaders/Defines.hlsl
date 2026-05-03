@@ -16,6 +16,7 @@
 struct Cell {
     uint cellType;    // 0=empty,1=Leaf,2=Root,3=Antenna,4=Wood,5=Sprout,6=Seed
     float energy;
+    uint energyFlow; // absolute
     uint parentDir;
     uint genomeId;
     uint direction;

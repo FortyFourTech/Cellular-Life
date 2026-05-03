@@ -26,6 +26,7 @@ public class WorldSimulation : MonoBehaviour
     int kernelLeafIdx;
     int kernelRootIdx;
     int kernelAntennaIdx;
+    int kernelRerouteIdx;
     int kernelTransportIdx;
     int kernelAbsorbIdx;
     int kernelDeathIdx;
@@ -82,6 +83,7 @@ public class WorldSimulation : MonoBehaviour
         kernelLeafIdx = simulationShader.FindKernel("LeafKernel");
         kernelRootIdx = simulationShader.FindKernel("RootKernel");
         kernelAntennaIdx = simulationShader.FindKernel("AntennaKernel");
+        kernelRerouteIdx = simulationShader.FindKernel("RerouteKernel");
         kernelTransportIdx = simulationShader.FindKernel("TransportKernel");
         kernelAbsorbIdx = simulationShader.FindKernel("AbsorptionKernel");
         kernelDeathIdx = simulationShader.FindKernel("DeathKernel");
@@ -132,6 +134,7 @@ public class WorldSimulation : MonoBehaviour
         simulationShader.SetBuffer(kernelLeafIdx, "_Cells", cellsBuffer);
         simulationShader.SetBuffer(kernelRootIdx, "_Cells", cellsBuffer);
         simulationShader.SetBuffer(kernelAntennaIdx, "_Cells", cellsBuffer);
+        simulationShader.SetBuffer(kernelRerouteIdx, "_Cells", cellsBuffer);
         simulationShader.SetBuffer(kernelTransportIdx, "_Cells", cellsBuffer);
         simulationShader.SetBuffer(kernelAbsorbIdx, "_Cells", cellsBuffer);
         simulationShader.SetBuffer(kernelDeathIdx, "_Cells", cellsBuffer);
@@ -288,6 +291,7 @@ public class WorldSimulation : MonoBehaviour
         simulationShader.Dispatch(kernelAntennaIdx, cx, cy, 1);
 
         // Transport
+        simulationShader.Dispatch(kernelRerouteIdx, cx, cy, 1);
         simulationShader.Dispatch(kernelTransportIdx, cx, cy, 1);
 
         // Absorption
@@ -305,6 +309,8 @@ public class WorldSimulation : MonoBehaviour
         simulationShader.Dispatch(kernelBehaviorIdx, cx, threadGroupsY: cy, 1);
 
         // Stats
+        stats = new uint[4];
+        statsBuffer.SetData(stats);
         simulationShader.Dispatch(kernelStatsIdx, 1, 1, 1);
 
         // get data

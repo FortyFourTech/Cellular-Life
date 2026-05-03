@@ -69,7 +69,7 @@ public class SimulationUI : MonoBehaviour
         if (!isPaused && world != null)
         {
             float timeSinceLastUpdate = Time.time - lastUpdateTime;
-            if (simulationSpeed > 0) {
+            if (simulationSpeed > 1f) {
                 int steps = Mathf.Max(1, Mathf.FloorToInt(simulationSpeed));
                 for (int i = 0; i < steps; ++i) world.Step();
                 lastUpdateTime = Time.time;
@@ -111,20 +111,21 @@ public class SimulationUI : MonoBehaviour
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("Generate")) { Generate(); }
         if (GUILayout.Button("Populate")) { Populate(); }
+        if (GUILayout.Button("Restart")) { Generate(); Populate(); }
         GUILayout.EndHorizontal();
         GUILayout.Label($"Speed: {simulationSpeed:F2}");
         simulationSpeed = GUILayout.HorizontalSlider(simulationSpeed, 0.01f, 1f);
 
-        GUILayout.Space(6);
-        GUILayout.Label("World Parameters", GUI.skin.label);
-        GUILayout.Label($"Sunlight: {sunlight:F2}");
-        sunlight = GUILayout.HorizontalSlider(sunlight, 0f, 8f);
-        GUILayout.Label($"Diffusion Rate: {diffusionRate:F2}");
-        diffusionRate = GUILayout.HorizontalSlider(diffusionRate, 0f, 1f);
-        GUILayout.Label($"Cell energy cost/tick: {cellEnergyCost:F4}");
-        cellEnergyCost = GUILayout.HorizontalSlider(cellEnergyCost, 0f, 0.1f);
+        // GUILayout.Space(6);
+        // GUILayout.Label("World Parameters", GUI.skin.label);
+        // GUILayout.Label($"Sunlight: {sunlight:F2}");
+        // sunlight = GUILayout.HorizontalSlider(sunlight, 0f, 8f);
+        // GUILayout.Label($"Diffusion Rate: {diffusionRate:F2}");
+        // diffusionRate = GUILayout.HorizontalSlider(diffusionRate, 0f, 1f);
+        // GUILayout.Label($"Cell energy cost/tick: {cellEnergyCost:F4}");
+        // cellEnergyCost = GUILayout.HorizontalSlider(cellEnergyCost, 0f, 0.1f);
 
-        if (GUILayout.Button("Apply World Params")) ApplyWorldParameters();
+        // if (GUILayout.Button("Apply World Params")) ApplyWorldParameters();
 
         GUILayout.Space(6);
         GUILayout.Label("Brush / Tools", GUI.skin.label);
@@ -143,20 +144,20 @@ public class SimulationUI : MonoBehaviour
         GUILayout.Space(6);
         GUILayout.Label("Visualization", GUI.skin.label);
         activeRenderMode = (WorldRenderer.RenderMode)GUILayout.SelectionGrid((int)activeRenderMode, Enum.GetNames(typeof(WorldRenderer.RenderMode)), 3);
-        showEnergyFlow = GUILayout.Toggle(showEnergyFlow, "Show Energy Flow");
+        // showEnergyFlow = GUILayout.Toggle(showEnergyFlow, "Show Energy Flow");
         wRenderer.renderMode = activeRenderMode;
 
-        GUILayout.Space(6);
-        GUILayout.Label("Genetics / Mutation", GUI.skin.label);
-        GUILayout.Label($"Mutation rate: {mutationRate:F3}");
-        mutationRate = GUILayout.HorizontalSlider(mutationRate, 0f, 1f);
-        GUILayout.Label($"Num changes: {mutationChanges}");
-        mutationChanges = (int)GUILayout.HorizontalSlider(mutationChanges, 0, 10);
-        mutationIncremental = GUILayout.Toggle(mutationIncremental, "Incremental changes");
+        // GUILayout.Space(6);
+        // GUILayout.Label("Genetics / Mutation", GUI.skin.label);
+        // GUILayout.Label($"Mutation rate: {mutationRate:F3}");
+        // mutationRate = GUILayout.HorizontalSlider(mutationRate, 0f, 1f);
+        // GUILayout.Label($"Num changes: {mutationChanges}");
+        // mutationChanges = (int)GUILayout.HorizontalSlider(mutationChanges, 0, 10);
+        // mutationIncremental = GUILayout.Toggle(mutationIncremental, "Incremental changes");
 
-        GUILayout.Label("Genome input (32 values 0..20 separated by commas)");
-        genomeInput = GUILayout.TextArea(genomeInput, GUILayout.Height(60));
-        if (GUILayout.Button("Create Seed with Genome")) { CreateSeedFromGenome(); }
+        // GUILayout.Label("Genome input (32 values 0..20 separated by commas)");
+        // genomeInput = GUILayout.TextArea(genomeInput, GUILayout.Height(60));
+        // if (GUILayout.Button("Create Seed with Genome")) { CreateSeedFromGenome(); }
 
         GUILayout.Space(6);
         GUILayout.Label("Debug / Quick Stats", GUI.skin.label);

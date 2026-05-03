@@ -198,6 +198,7 @@ bool CommandGrow(in uint2 cellPos) {
         uint2 targetCoord = i == 2 ? cellPos : ShiftCoord(cellPos, createDir);
         // has enough energy?
         CreateCell(targetCoord, directionTypes[i], createDir, RotateDir(createDir, 2));
+        SetIntBit(_Cells[cellIdx].energyFlow, directionTypes[i] == CELLTYPE_SPROUT || directionTypes[i] == CELLTYPE_SEED, createDir);
 
         growed = true;
     }
