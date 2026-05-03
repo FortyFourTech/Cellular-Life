@@ -1,0 +1,163 @@
+// Simulation.compute
+// Basic compute kernels for iteration 0 (skeleton implementations).
+
+#pragma kernel DiffuseEnergyKernel
+#pragma kernel LeafKernel
+#pragma kernel RootKernel
+#pragma kernel AntennaKernel
+#pragma kernel TransportKernel
+#pragma kernel AbsorptionKernel
+#pragma kernel DeathKernel
+#pragma kernel BehaviorKernel
+#pragma kernel StatsKernel
+
+#include "Defines.hlsl"
+#include "CommonParams.hlsl"
+
+cbuffer SimulationParams
+{
+    float _Sunlight;
+    float _DiffusionRate;
+    float _CriticalOrg;
+    float _CriticalNrg;
+};
+
+RWStructuredBuffer<uint> _Stats; // small stats buffer
+
+#include "Common.hlsl"
+#include "CellBehavior.hlsl"
+
+[numthreads(8,8,1)]
+void DiffuseEnergyKernel(uint3 id : SV_DispatchThreadID)
+{
+    int2 pos = int2(id.x, id.y);
+    if (pos.x >= _Width || pos.y >= _Height) return;
+
+    float2 sum = float2(0,0);
+    int count = 0;
+    for (int oy=-1; oy<=1; ++oy) {
+        for (int ox=-1; ox<=1; ++ox) {
+            int nx = (pos.x + ox + _Width) % _Width;
+            int ny = (pos.y + oy + _Height) % _Height;
+            float2 v = _SoilTexRead[int2(nx,ny)];
+            sum += v;
+            count++;
+        }
+    }
+    float2 avg = sum / count;
+    // simple relaxation toward neighbor average controlled by diffusion rate
+    float2 cur = _SoilTexRead[pos];
+    float2 next = lerp(cur, avg, saturate(_DiffusionRate));
+    _SoilTexWrite[pos] = next;
+}
+
+[numthreads(32,32,1)]
+void LeafKernel(uint3 id : SV_DispatchThreadID)
+{
+    Cell c = _Cells[id.y*_Width + id.x];
+    if (c.cellType != CELLTYPE_LEAF) return; // only leaves
+
+    int2 pos = id.xy;
+    float2 soil = _SoilTexRead[pos];
+    float localOrganics = soil.x;
+    // production formula (MVP): proportional to local organics and sunlight
+    float produced = saturate(localOrganics) * _Sunlight * 0.01;
+    c.energy += produced * _Timestep;
+    _Cells[id.y*_Width + id.x] = c;
+}
+
+[numthreads(32,32,1)]
+void RootKernel(uint3 id : SV_DispatchThreadID)
+{
+    Cell c = _Cells[id.y*_Width + id.x];
+    if (c.cellType != CELLTYPE_ROOT) return; // only roots
+
+    int2 pos = id.xy;
+    float2 soil = _SoilTexRead[pos];
+    float localOrganics = soil.x;
+    // production formula (MVP): proportional to local organics and sunlight
+    float produced = localOrganics * _Timestep;
+    c.energy += produced;
+    _Cells[id.y*_Width + id.x] = c;
+    _SoilTexWrite[pos] = float2(soil.x - produced, soil.y); // deplete organics
+}
+
+[numthreads(32,32,1)]
+void AntennaKernel(uint3 id : SV_DispatchThreadID)
+{
+    Cell c = _Cells[id.y*_Width + id.x];
+    if (c.cellType != CELLTYPE_ANTENNA) return; // only antennas
+
+    int2 pos = id.xy;
+    float2 soil = _SoilTexRead[pos];
+    float localEnergy = soil.y;
+    // production formula (MVP): proportional to local energy and sunlight
+    float produced = localEnergy * _Timestep;
+    c.energy += produced;
+    _Cells[id.y*_Width + id.x] = c;
+    _SoilTexWrite[pos] = float2(soil.x, soil.y - produced); // deplete energy
+}
+
+[numthreads(32,32,1)]
+void TransportKernel(uint3 id : SV_DispatchThreadID)
+{
+    Cell c = _Cells[id.y*_Width + id.x];
+    if (c.cellType != CELLTYPE_WOOD) return; // only wood transfers in MVP
+
+    // MVP: simple local equalization with neighbors in direction bitmask (not full implementation)
+    // placeholder: small passive loss to neighbors
+    float loss = c.energy * 0.02 * _Timestep;
+    c.energy -= loss;
+    _Cells[id.y*_Width + id.x] = c;
+}
+
+[numthreads(32,32,1)]
+void AbsorptionKernel(uint3 id : SV_DispatchThreadID)
+{
+    Cell c = _Cells[id.y*_Width + id.x];
+    if (c.cellType == 0) return;
+
+    // MVP: simple metabolic cost per tick
+    float cost = 0.005 * _Timestep;
+    c.energy -= cost;
+    _Cells[id.y*_Width + id.x] = c;
+}
+
+[numthreads(32,32,1)]
+void DeathKernel(uint3 id : SV_DispatchThreadID)
+{
+    Cell c = _Cells[id.y*_Width + id.x];
+    if (c.cellType != 0
+        && (c.energy <= 0.0
+            || (c.cellType == CELLTYPE_ROOT && _SoilTexRead[id.xy].x <= 0)
+            || (c.cellType == CELLTYPE_ANTENNA && _SoilTexRead[id.xy].y <= 0)
+            || (c.cellType != CELLTYPE_ROOT && _SoilTexRead[id.xy].x > _CriticalOrg)
+            || (c.cellType != CELLTYPE_ANTENNA && _SoilTexRead[id.xy].y > _CriticalNrg)
+            // || (c.cellType == CELLTYPE_WOOD && c.flowDirs = 0)
+        )
+    ) {
+        KillCell(id.xy);
+    }
+}
+
+[numthreads(32,32,1)]
+void BehaviorKernel(uint3 id : SV_DispatchThreadID)
+{
+    uint cellIdx = id.y*_Width + id.x;
+    Cell c = _Cells[cellIdx];
+
+    if (c.cellType != CELLTYPE_SPROUT) return; // only sprouts
+
+    ExecuteGene(id.xy, _Genomes[_Cells[cellIdx].genomeId].genes[_Cells[cellIdx].activeGene]);
+}
+
+[numthreads(32,32,1)]
+void StatsKernel(uint3 id : SV_DispatchThreadID)
+{
+    Cell c = _Cells[id.y*_Width + id.x];
+    // InterlockedAdd(_Stats[0], 1);
+    InterlockedAdd(_Stats[0], c.cellType != 0 ? 1 : 0);
+    InterlockedAdd(_Stats[1], c.cellType == CELLTYPE_LEAF ? 1 : 0);
+    // _Stats[0] = totalCells;
+    // _Stats[1] = leafCount;
+}

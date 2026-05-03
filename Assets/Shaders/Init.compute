@@ -1,0 +1,68 @@
+// Init.compute
+#pragma kernel InitOrganicsKernel
+#pragma kernel InitEnergyKernel
+#pragma kernel InitCells
+#pragma kernel CleanCells
+
+#include "Defines.hlsl"
+#include "CommonParams.hlsl"
+
+cbuffer InitParams
+{
+    float _StartOrganic;
+    float _MeanEnergy;
+    uint _CellRowCount;
+};
+
+#include "Common.hlsl"
+
+[numthreads(32,32,1)]
+void InitOrganicsKernel(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x > _Width || id.y > _Height) return;
+
+    uint2 pos = uint2(id.x, id.y);
+    float2 cur = _SoilTexRead[pos];
+    cur.x = _StartOrganic;
+    _SoilTexWrite[pos] = cur;
+}
+
+[numthreads(32,32,1)]
+void InitEnergyKernel(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x > _Width || id.y > _Height) return;
+
+    uint2 pos = uint2(id.x, id.y);
+    float2 cur = _SoilTexRead[pos];
+    cur.y = _MeanEnergy;
+    _SoilTexWrite[pos] = cur;
+}
+
+[numthreads(1,1,1)]
+void InitCells(uint3 id : SV_DispatchThreadID)
+{
+    uint2 cellPos = id.xy * 32;
+    uint genomeIdx = id.y * _CellRowCount + id.x;
+    Genome newCellGenome = GenerateRandomGenome(cellPos);
+    _Genomes[genomeIdx] = newCellGenome;
+    // mark one reference for this genome (this cell)
+    _Genomes[genomeIdx].cellNum = 1;
+    uint cellIdx = cellPos.y * _Width + cellPos.x;
+    _Cells[cellIdx] = (Cell)0;
+    _Cells[cellIdx].cellType = CELLTYPE_SPROUT;
+    _Cells[cellIdx].genomeId = genomeIdx;
+    _Cells[cellIdx].parentDir = 0xFFFFFFFF;
+    _Cells[cellIdx].energy = 0.5;
+}
+
+[numthreads(32,32,1)]
+void CleanCells(uint3 id : SV_DispatchThreadID)
+{
+    uint cellIdx = id.y * _Width + id.x;
+
+    if (_Cells[cellIdx].cellType > 0) {
+        InterlockedAdd(_Genomes[_Cells[cellIdx].genomeId].cellNum, (uint)-1);
+    }
+
+    _Cells[cellIdx] = (Cell)0;
+}

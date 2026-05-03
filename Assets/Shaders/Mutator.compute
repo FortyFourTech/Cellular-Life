@@ -1,0 +1,101 @@
+// Mutator.compute
+#pragma kernel ApplyOrganicsKernel
+#pragma kernel ApplyEnergyKernel
+#pragma kernel KillCellsKernel
+#pragma kernel SetCellsKernel
+
+#include "Defines.hlsl"
+#include "CommonParams.hlsl"
+
+cbuffer MutatorParams
+{
+    uint _OrganicsCount;
+    uint _EnergyCount;
+    uint _KillCount;
+    uint _SetCount;
+};
+
+struct ResourceDelta { uint x; uint y; float delta; uint pad; };
+struct KillCoord { uint x; uint y; uint pad0; uint pad1; };
+struct SetCell { uint x; uint y; uint newType; uint pad0; };
+
+RWStructuredBuffer<ResourceDelta> _OrganicsDeltas;
+RWStructuredBuffer<ResourceDelta> _EnergyDeltas;
+RWStructuredBuffer<KillCoord> _KillList;
+RWStructuredBuffer<SetCell> _SetList;
+
+#include "Common.hlsl"
+
+[numthreads(64,1,1)]
+void ApplyOrganicsKernel(uint3 id : SV_DispatchThreadID)
+{
+    uint idx = id.x;
+    if (idx >= _OrganicsCount) return;
+
+    ResourceDelta d = _OrganicsDeltas[idx];
+    int xi = (int)d.x; int yi = (int)d.y;
+    if (xi < 0 || yi < 0) return;
+    int x = xi % _Width; if (x < 0) x += _Width;
+    int y = yi % _Height; if (y < 0) y += _Height;
+    uint2 pos = uint2(x, y);
+    float2 cur = _SoilTexRead[pos];
+    cur.x += d.delta;
+    _SoilTexWrite[pos] = cur;
+}
+
+[numthreads(64,1,1)]
+void ApplyEnergyKernel(uint3 id : SV_DispatchThreadID)
+{
+    uint idx = id.x;
+    if (idx >= _EnergyCount) return;
+
+    ResourceDelta d = _EnergyDeltas[idx];
+    int xi = (int)d.x; int yi = (int)d.y;
+    if (xi < 0 || yi < 0) return;
+    int x = xi % _Width; if (x < 0) x += _Width;
+    int y = yi % _Height; if (y < 0) y += _Height;
+    uint2 pos = uint2(x, y);
+    float2 cur = _SoilTexRead[pos];
+    cur.y += d.delta;
+    _SoilTexWrite[pos] = cur;
+}
+
+[numthreads(64,1,1)]
+void KillCellsKernel(uint3 id : SV_DispatchThreadID)
+{
+    uint idx = id.x;
+    if (idx >= _KillCount) return;
+    KillCoord k = _KillList[idx];
+    int xi = (int)k.x; int yi = (int)k.y;
+    if (xi < 0 || yi < 0) return;
+    int x = xi % _Width; if (x < 0) x += _Width;
+    int y = yi % _Height; if (y < 0) y += _Height;
+    uint cellIndex = (uint)(y * _Width + x);
+    if (cellIndex < _Cells.Length)
+    {
+        Cell c = _Cells[cellIndex];
+        c.cellType = 0;
+        c.energy = 0.0;
+        _Cells[cellIndex] = c;
+    }
+}
+
+[numthreads(64,1,1)]
+void SetCellsKernel(uint3 id : SV_DispatchThreadID)
+{
+    uint idx = id.x;
+    if (idx >= _SetCount) return;
+    SetCell k = _SetList[idx];
+    int xi = (int)k.x; int yi = (int)k.y;
+    if (xi < 0 || yi < 0) return;
+    int x = xi % _Width; if (x < 0) x += _Width;
+    int y = yi % _Height; if (y < 0) y += _Height;
+    uint cellIndex = (uint)(y * _Width + x);
+    if (cellIndex < _Cells.Length)
+    {
+        Cell c = _Cells[cellIndex];
+
+        c.cellType = k.newType;
+        _Cells[cellIndex] = c;
+    }
+}
