@@ -17,21 +17,26 @@ float hash12(float2 p)
     return frac((p3.x + p3.y) * p3.z);
 }
 
-float randFloat(uint2 cellPos, float salt)
-{
-    return
-        _Rand * (float(asint(salt) >> 0 & 1u) * 2.0 - 1.0)
-        + asfloat(cellPos.x) * (float(asint(salt) >> 1 & 1u) * 2.0 - 1.0)
-        + asfloat(cellPos.y) * (float(asint(salt) >> 2 & 1u) * 2.0 - 1.0)
-        + salt * (float(asint(salt) >> 3 & 1u) * 2.0 - 1.0);
-    // float2 seed = cellPos + float2(salt, 0.0);
-    // float random_val = hash12(seed);
-    // return random_val;
-}
-
 uint randInt(uint2 cellPos, float salt)
 {
-    return asuint(randFloat(cellPos, salt));
+    // Создаем начальное зерно из всех доступных данных
+    // _Timestamp и _Rand лучше привести к uint бинарно
+    uint seed = cellPos.x + cellPos.y * 1103515245u + asuint(salt) + asuint(_Timestamp) + asuint(_Rand);
+
+    // Алгоритм PCG (очень быстрый и качественный)
+    uint state = seed * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    uint result = (word >> 22u) ^ word;
+
+    return result;
+}
+
+float randFloat(uint2 cellPos, float salt)
+{
+    return float(randInt(cellPos, salt)) / 4294967295.0;
+    // float2 seed = cellPos + float2(salt + _Timestamp + _Rand, 0.0);
+    // float random_val = hash12(seed);
+    // return random_val;
 }
 
 uint PosToIdx(uint2 pos) {
@@ -150,14 +155,14 @@ uint2 ShiftCoord(in uint2 inPos, in uint dir) {
 Gene GenerateRandomGene(in uint2 cellPos, uint geneIdx)
 {
     Gene gene = (Gene)0;
-    gene.growDirections = randInt(cellPos, _Timestamp + geneIdx);
-    gene.conditions = randInt(cellPos, _Timestamp * 2 + geneIdx);
-    gene.condParam1 = randFloat(cellPos, _Timestamp * 3 + geneIdx);
-    gene.condParam2 = randFloat(cellPos, _Timestamp * 4 + geneIdx);
-    gene.condResult = randInt(cellPos, _Timestamp * 5 + geneIdx);
-    gene.comGenes = randInt(cellPos, _Timestamp * 6 + geneIdx);
-    gene.aloneCommands = randInt(cellPos, _Timestamp * 7 + geneIdx);
-    gene.aloneComGenes = randInt(cellPos, _Timestamp * 8 + geneIdx);
+    gene.growDirections = randInt(cellPos, geneIdx);
+    gene.conditions = randInt(cellPos, 2 + geneIdx);
+    gene.condParam1 = randFloat(cellPos, 3 + geneIdx) * 255;
+    gene.condParam2 = randFloat(cellPos, 4 + geneIdx) * 255;
+    gene.condResult = randInt(cellPos, 5 + geneIdx);
+    gene.comGenes = randInt(cellPos, 6 + geneIdx);
+    gene.aloneCommands = randInt(cellPos, 7 + geneIdx);
+    gene.aloneComGenes = randInt(cellPos, 8 + geneIdx);
     // TODO: optimize randomization to make less randInt() calls
 
     return gene;
@@ -177,8 +182,8 @@ Genome GenerateRandomGenome(in uint2 cellPos)
 
 Gene MutateGene(in uint2 cellPos, in Gene gene)
 {
-    uint randIdx = randInt(cellPos, _Timestamp) % 22;
-    uint randVal = randInt(cellPos, _Timestamp*2);
+    uint randIdx = randInt(cellPos, 100) % 22;
+    uint randVal = randInt(cellPos, 101);
     // select what to mutate
     // change value
     gene.growDirections = randIdx == 1 ? MergeByMask(gene.growDirections, randVal, 0x000000ff) : gene.growDirections;

@@ -13,6 +13,8 @@
 #define ABSORB_SOIL_ENERGY  0.05
 #define ABSORB_LIFE_ENERGY  0.05
 
+#define GENES_NUM 32
+
 struct Cell {
     uint cellType;    // 0=empty,1=Leaf,2=Root,3=Antenna,4=Wood,5=Sprout,6=Seed
     float energy;
@@ -37,6 +39,6 @@ struct Gene {
 };
 
 struct Genome {
-    Gene genes[32];
+    Gene genes[GENES_NUM];
     uint cellNum;
 };

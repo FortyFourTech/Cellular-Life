@@ -7,8 +7,8 @@ Shader "Simulation/Cells"
         _WoodColor("Wood Color", Color) = (0.5,0.5,0.5,1)
         _SproutColor("Sprout Color", Color) = (1.0,1.0,1.0,1)
         _SeedColor("Seed Color", Color) = (1.0,1.0,0.0,1)
-        _Width("Width", Float) = 1.0
-        _Height("Height", Float) = 1.0
+        _Width("Width", Integer) = 1024
+        _Height("Height", Integer) = 1024
     }
     SubShader
     {
@@ -32,8 +32,8 @@ Shader "Simulation/Cells"
             fixed4 _WoodColor;
             fixed4 _SproutColor;
             fixed4 _SeedColor;
-            float _Width;
-            float _Height;
+            int _Width;
+            int _Height;
 
             StructuredBuffer<Cell> _Cells;
 

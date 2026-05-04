@@ -266,7 +266,7 @@ public class WorldSimulation : MonoBehaviour
         initShader.SetTexture(orgKernelIdx, "_SoilTexWrite", SoilRTTarget);
         initShader.SetFloat("_StartOrganic", 0.5f);
         initShader.Dispatch(orgKernelIdx, cx, cy, 1);
-        ReversePing();
+        FlipSoilTex();
 
         // init starting energy
         int nrgKernelIdx = initShader.FindKernel("InitEnergyKernel");
@@ -274,7 +274,7 @@ public class WorldSimulation : MonoBehaviour
         initShader.SetTexture(nrgKernelIdx, "_SoilTexWrite", SoilRTTarget);
         initShader.SetFloat("_MeanEnergy", 0.5f);
         initShader.Dispatch(nrgKernelIdx, cx, cy, 1);
-        ReversePing();
+        FlipSoilTex();
 
         // init starting cells
         int cellsKernelIdx = initShader.FindKernel("CleanCells");
@@ -405,7 +405,7 @@ public class WorldSimulation : MonoBehaviour
             GenomesData = data.ToArray();
         });
 
-        ReversePing();
+        FlipSoilTex();
     }
 
     void CreateTestCells()
@@ -432,10 +432,11 @@ public class WorldSimulation : MonoBehaviour
         if (soilRT1 != null) soilRT1.Release();
     }
 
-    private void ReversePing()
+    private void FlipSoilTex()
     {
         Graphics.Blit(SoilRTTarget, SoilRTSource);
         ping = !ping;
+        // Graphics.CopyBuffer(cellsBuffer, killBuffer);
     }
 
     // void Update()
@@ -480,7 +481,7 @@ public class WorldSimulation : MonoBehaviour
         int groups = Mathf.CeilToInt((float)count / 64f);
         mutationShader.Dispatch(kernelMutOrganicsIdx, groups, 1, 1);
         organicsPending.Clear();
-        ReversePing();
+        FlipSoilTex();
     }
 
     public void RunEnergyNow()
@@ -495,7 +496,7 @@ public class WorldSimulation : MonoBehaviour
         int groups = Mathf.CeilToInt((float)count / 64f);
         mutationShader.Dispatch(kernelMutEnergyIdx, groups, 1, 1);
         energyPending.Clear();
-        ReversePing();
+        FlipSoilTex();
     }
 
     public void RunKillNow()

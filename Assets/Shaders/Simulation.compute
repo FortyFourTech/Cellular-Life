@@ -51,7 +51,7 @@ void DiffuseEnergyKernel(uint3 id : SV_DispatchThreadID)
     // float2 next = lerp(cur, avg, saturate(_DiffusionRate));
     // next.x = cur.x;
 
-    float2 next = float2(cur.x, lerp(cur.y, 0.5, 0.25));
+    float2 next = float2(cur.x, lerp(cur.y, 0.5, 0.01));
     _SoilTexWrite[pos] = next;
 }
 
@@ -73,32 +73,32 @@ void LeafKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(32,32,1)]
 void RootKernel(uint3 id : SV_DispatchThreadID)
 {
-    Cell c = _Cells[id.y*_Width + id.x];
+    uint cellIdx = id.y * _Width + id.x;
+    Cell c = _Cells[cellIdx];
     if (c.cellType != CELLTYPE_ROOT) return; // only roots
 
     int2 pos = id.xy;
     float2 soil = _SoilTexRead[pos];
     float localOrganics = soil.x;
-    // production formula (MVP): proportional to local organics and sunlight
     float produced = localOrganics * _Timestep;
     c.energy += produced;
-    _Cells[id.y*_Width + id.x] = c;
+    _Cells[cellIdx] = c;
     _SoilTexWrite[pos] = float2(soil.x - produced, soil.y); // deplete organics
 }
 
 [numthreads(32,32,1)]
 void AntennaKernel(uint3 id : SV_DispatchThreadID)
 {
-    Cell c = _Cells[id.y*_Width + id.x];
+    uint cellIdx = id.y * _Width + id.x;
+    Cell c = _Cells[cellIdx];
     if (c.cellType != CELLTYPE_ANTENNA) return; // only antennas
 
     int2 pos = id.xy;
     float2 soil = _SoilTexRead[pos];
     float localEnergy = soil.y;
-    // production formula (MVP): proportional to local energy and sunlight
     float produced = localEnergy * _Timestep;
     c.energy += produced;
-    _Cells[id.y*_Width + id.x] = c;
+    _Cells[cellIdx] = c;
     _SoilTexWrite[pos] = float2(soil.x, soil.y - produced); // deplete energy
 }
 

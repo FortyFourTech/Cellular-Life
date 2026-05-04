@@ -250,46 +250,66 @@ public class SimulationUI : MonoBehaviour
         {
             ReadGenomeFromGpu(inspectedCell.genomeId);
 
-            // display genome fields via reflection to avoid access issues
-            var gType = typeof(GenomeData);
-            var fields = gType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            foreach (var f in fields)
-            {
-                object val = f.GetValue(inspectedGenome);
-                if (val == null)
-                {
-                    GUILayout.Label($"{f.Name}: null");
-                    continue;
-                }
+            var inspectedGene = inspectedGenome.GetGene(inspectedCell.activeGene);
+            GUILayout.Label("Active gene:");
 
-                // if it's an array, show length and some preview
-                var arr = val as System.Array;
-                if (arr != null)
-                {
-                    GUILayout.Label($"{f.Name}.Length: {arr.Length}");
-                    int toShow = Math.Min(8, arr.Length);
-                    for (int i = 0; i < toShow; ++i)
-                    {
-                        var el = arr.GetValue(i);
-                        if (el == null) break;
-                        // show element fields
-                        var et = el.GetType();
-                        var efields = et.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                        System.Text.StringBuilder sb = new System.Text.StringBuilder();
-                        sb.Append($"[{i}]: ");
-                        foreach (var ef in efields)
-                        {
-                            var v = ef.GetValue(el);
-                            sb.Append($"{ef.Name}={v} ");
-                        }
-                        GUILayout.Label(sb.ToString());
-                    }
-                }
-                else
-                {
-                    GUILayout.Label($"{f.Name}: {val}");
-                }
-            }
+            GUILayout.Label($"growForward: {inspectedGene.GetGrowCellType(0)}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
+            GUILayout.Label($"growRight: {inspectedGene.GetGrowCellType(1)}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
+            GUILayout.Label($"growBack: {inspectedGene.GetGrowCellType(2)}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
+            GUILayout.Label($"growLeft: {inspectedGene.GetGrowCellType(3)}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
+            GUILayout.Label($"conditions: {inspectedGene.conditions}"); // two conditions in two first bites
+            GUILayout.Label($"condParam1: {inspectedGene.condParam1}");
+            GUILayout.Label($"condParam2: {inspectedGene.condParam2}");
+            GUILayout.Label($"condResult: {inspectedGene.condResult}"); // two commands in two first bites: 0 - command for success, 1 - command for fail, 2 - gene for success, 3 - gene for fail
+            GUILayout.Label($"comGenes: {inspectedGene.comGenes}"); // gene indicies: 0 - for first command success, 1 - for first command fail, 2 - for second command success, 3 - for second command fail
+            GUILayout.Label($"aloneCommands: {inspectedGene.aloneCommands}"); // two commands in two first bites: 0 - for success, 1 - for fail
+            GUILayout.Label($"aloneComGenes: {inspectedGene.aloneComGenes}"); // gene indicies: 0 - for first command success, 1 - for first command fail, 2 - for second command success, 3 - for second command fail
+
+            // unsafe
+            // {
+            // }
+            // var genesArr = (fixed Gene[32])inspectedGenome.genes;
+
+            // display genome fields via reflection to avoid access issues
+            // var gType = typeof(GenomeData);
+            // var fields = gType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            // foreach (var f in fields)
+            // {
+            //     object val = f.GetValue(inspectedGenome);
+            //     if (val == null)
+            //     {
+            //         GUILayout.Label($"{f.Name}: null");
+            //         continue;
+            //     }
+
+            //     // if it's an array, show length and some preview
+            //     var arr = val as System.Array;
+            //     if (arr != null)
+            //     {
+            //         GUILayout.Label($"{f.Name}.Length: {arr.Length}");
+            //         int toShow = Math.Min(8, arr.Length);
+            //         for (int i = 0; i < toShow; ++i)
+            //         {
+            //             var el = arr.GetValue(i);
+            //             if (el == null) break;
+            //             // show element fields
+            //             var et = el.GetType();
+            //             var efields = et.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            //             System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            //             sb.Append($"[{i}]: ");
+            //             foreach (var ef in efields)
+            //             {
+            //                 var v = ef.GetValue(el);
+            //                 sb.Append($"{ef.Name}={v} ");
+            //             }
+            //             GUILayout.Label(sb.ToString());
+            //         }
+            //     }
+            //     else
+            //     {
+            //         GUILayout.Label($"{f.Name}: {val}");
+            //     }
+            // }
         }
 
         GUILayout.EndArea();

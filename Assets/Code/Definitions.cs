@@ -23,10 +23,28 @@ public struct Gene {
     public uint aloneCommands; // two commands in two first bites: 0 - for success, 1 - for fail
     public uint aloneComGenes; // gene indicies: 0 - for first command success, 1 - for first command fail, 2 - for second command success, 3 - for second command fail
     // public uint pad0;
+
+    public CellType GetGrowCellType(int dir) => (CellType)(((growDirections >> (dir * 8)) & 0xFF) % 32);
 };
 
 public unsafe struct GenomeData {
     public fixed byte genes[1024]; // 4 * 8 * 32 = 1024
     public uint cellNum;
+
+    public Gene GetGene(uint index)
+    {
+        // 1. Рассчитываем размер одной структуры Gene (в байтах)
+        int geneSize = sizeof(Gene);
+
+        // 2. Получаем указатель на начало массива байт
+        fixed (byte* pStart = genes)
+        {
+            // 3. Сдвигаем указатель на (index * размер_гена)
+            Gene* pGene = (Gene*)(pStart + (index * geneSize));
+
+            // 4. Возвращаем значение (разыменовываем указатель)
+            return *pGene;
+        }
+    }
 };
 

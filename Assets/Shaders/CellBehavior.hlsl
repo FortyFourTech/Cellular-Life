@@ -17,7 +17,7 @@ int SINGLE_COMM_NUM = 6;
 void SetActiveGene(in uint2 cellPos, uint geneIdx) {
     uint cellIdx = cellPos.y * _Width + cellPos.x;
     // Cell cell = _Cells[cellIdx];
-    _Cells[cellIdx].activeGene = geneIdx;
+    _Cells[cellIdx].activeGene = geneIdx  % GENES_NUM;
 }
 
 // #region Gene conditions
@@ -245,8 +245,8 @@ void ExecuteGene(in uint2 cellPos, in Gene gene)
     // determine if cell is single or not
     bool isSingle = _Cells[cellIdx].parentDir == 0xFFFFFFFF;
     // check canditions are valid
-    uint cond1 = UnpackInt1(gene.conditions);
-    uint cond2 = UnpackInt2(gene.conditions);
+    uint cond1 = UnpackInt1(gene.conditions) % (COND_NUM * 4);
+    uint cond2 = UnpackInt2(gene.conditions) % (COND_NUM * 4);
     bool cond1Valid = cond1 < COND_NUM;
     bool cond2Valid = cond2 < COND_NUM;
 
@@ -261,9 +261,10 @@ void ExecuteGene(in uint2 cellPos, in Gene gene)
     bool check2 = CheckGeneCondition(cellPos, UnpackInt2(gene.conditions), gene.condParam2);
     bool check = check1 && check2;
 
+    uint commNum = isSingle ? SINGLE_COMM_NUM : COMM_NUM;
     if (check) {
-        uint commandId = UnpackInt1(isSingle ? gene.aloneCommands : gene.condResult);
-        if (commandId > COMM_NUM) {
+        uint commandId = UnpackInt1(isSingle ? gene.aloneCommands : gene.condResult) % (commNum * 4);
+        if (commandId > commNum) {
             SetActiveGene(cellPos, UnpackInt3(gene.condResult));
         } else {
             bool commandResult = ExecuteCommand(cellPos, commandId);
@@ -274,8 +275,8 @@ void ExecuteGene(in uint2 cellPos, in Gene gene)
             }
         }
     } else {
-        uint commandId = UnpackInt2(isSingle ? gene.aloneCommands : gene.condResult);
-        if (commandId > COMM_NUM) {
+        uint commandId = UnpackInt2(isSingle ? gene.aloneCommands : gene.condResult) % (commNum * 4);
+        if (commandId > commNum) {
             SetActiveGene(cellPos, UnpackInt4(gene.condResult));
         } else {
             bool commandResult = ExecuteCommand(cellPos, commandId);
