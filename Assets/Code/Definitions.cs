@@ -1,4 +1,6 @@
 
+using System;
+
 public enum CellType : uint { Empty, Leaf, Root, Antenna, Wood, Sprout, Seed };
 
 public struct CellData
@@ -25,6 +27,19 @@ public struct Gene {
     // public uint pad0;
 
     public CellType GetGrowCellType(int dir) => (CellType)(((growDirections >> (dir * 8)) & 0xFF) % 32);
+    // public string GetGrowCellTypeString(int dir) => Enum.IsDefined(typeof(CellType), GetGrowCellType(dir)) ? GetGrowCellType(dir).ToString() : "-";
+    public string GetGrowCellTypeString(int dir) => (((growDirections >> (dir * 8)) & 0xFF) % 32) switch
+    {
+        0 => "[0]",
+        1 => "🟢",
+        2 => "🔴",
+        3 => "🔵",
+        4 => "🟤",
+        5 => "⚪️",
+        6 => "🟡",
+        _ => "[-]",
+    };
+    // Enum.IsDefined(typeof(CellType), GetGrowCellType(dir)) ? GetGrowCellType(dir).ToString() : "-";
 };
 
 public unsafe struct GenomeData {
