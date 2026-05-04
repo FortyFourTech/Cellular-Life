@@ -248,7 +248,7 @@ public class SimulationUI : MonoBehaviour
         }
         else
         {
-            ReadGenomeFromGpu(inspectedCell.genomeId);
+            // ReadGenomeFromGpu(inspectedCell.genomeId);
 
             var inspectedGene = inspectedGenome.GetGene(inspectedCell.activeGene);
 
@@ -374,13 +374,20 @@ public class SimulationUI : MonoBehaviour
 
     void ReadCellFromGpu(int gx, int gy)
     {
-        haveInspectedCell = false;
+        // haveInspectedCell = false;
         genomeReadError = "";
         if (world == null || world.CellsBuffer == null) return;
         int idx = gy * world.width + gx;
 
-        inspectedCell = world.CellsData[idx];
-        haveInspectedCell = inspectedCell.cellType > 0;
+        world.RequestCellAndGenome(gx, gy, (cell, genome) =>
+        {
+            inspectedCell = cell;
+            inspectedGenome = genome;
+            haveInspectedCell = inspectedCell.cellType > 0;
+            if (haveInspectedCell)
+                return;
+        });
+        // inspectedCell = world.CellsData[idx];
         return;
 
         try

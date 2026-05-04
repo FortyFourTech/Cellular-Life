@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -36,6 +37,8 @@ public class WorldSimulation : MonoBehaviour
     int kernelMutEnergyIdx = -1;
     int kernelMutKillIdx = -1;
     int kernelSetCellIdx = -1;
+    int kernelCopyCellIdx = -1;
+    int kernelCopyGenomeIdx = -1;
 
     uint[] stats;
 
@@ -44,6 +47,9 @@ public class WorldSimulation : MonoBehaviour
     ComputeBuffer energyDeltaBuffer;
     ComputeBuffer killBuffer;
     ComputeBuffer setCellBuffer;
+    // small single-item buffers for readback
+    ComputeBuffer singleCellBuffer;
+    ComputeBuffer singleGenomeBuffer;
 
     bool organicsScheduled = false;
     bool energyScheduled = false;
@@ -183,6 +189,19 @@ public class WorldSimulation : MonoBehaviour
             mutationShader.SetBuffer(kernelSetCellIdx, "_Cells", cellsBuffer);
         } catch { kernelSetCellIdx = -1; }
 
+        // create single-element readback buffers and bind copy kernels
+        singleCellBuffer = new ComputeBuffer(1, System.Runtime.InteropServices.Marshal.SizeOf(typeof(CellData)));
+        singleGenomeBuffer = new ComputeBuffer(1, System.Runtime.InteropServices.Marshal.SizeOf(typeof(GenomeData)));
+        try {
+            kernelCopyCellIdx = mutationShader.FindKernel("CopyCellKernel");
+            mutationShader.SetBuffer(kernelCopyCellIdx, "_SingleCellOut", singleCellBuffer);
+            mutationShader.SetBuffer(kernelCopyCellIdx, "_Cells", cellsBuffer);
+        } catch { kernelCopyCellIdx = -1; }
+        try {
+            kernelCopyGenomeIdx = mutationShader.FindKernel("CopyGenomeKernel");
+            mutationShader.SetBuffer(kernelCopyGenomeIdx, "_SingleGenomeOut", singleGenomeBuffer);
+            mutationShader.SetBuffer(kernelCopyGenomeIdx, "_Genomes", genomesBuffer);
+        } catch { kernelCopyGenomeIdx = -1; }
 
         // initialize soil as zeros (MVP)
         Graphics.SetRenderTarget(soilRT0);
@@ -202,14 +221,16 @@ public class WorldSimulation : MonoBehaviour
         int cellsKernelIdx = initShader.FindKernel("InitCells");
         initShader.SetInt("_CellRowCount", cx);
         initShader.SetFloat("_Timestamp", Time.time);
-        initShader.SetFloat("_Rand", Random.value);
+        initShader.SetFloat("_Rand", UnityEngine.Random.value);
         initShader.SetBuffer(cellsKernelIdx, "_Cells", cellsBuffer);
         initShader.SetBuffer(cellsKernelIdx, "_Genomes", genomesBuffer);
         initShader.Dispatch(cellsKernelIdx, cx, cy, 1);
 
         isStarted = true;
 
-        // get data
+        // get data (stats only). Avoid full-buffer readbacks here because they are
+        // expensive. Use `RequestCellAndGenome(x,y, callback)` to read a single cell
+        // and its genome on demand instead of reading the whole buffers.
         AsyncGPUReadback.Request(statsBuffer, (AsyncGPUReadbackRequest request) =>
         {
             if (request.hasError) {
@@ -222,34 +243,6 @@ public class WorldSimulation : MonoBehaviour
             // Debug.Log(Data[63].value);
             // submit updated date
             stats = data.ToArray();
-        });
-
-        AsyncGPUReadback.Request(cellsBuffer, (AsyncGPUReadbackRequest request) =>
-        {
-            if (request.hasError) {
-                Debug.LogError("Ошибка чтения с GPU");
-                return;
-            }
-
-            var data = request.GetData<CellData>();
-
-            // Debug.Log(Data[63].value);
-            // submit updated date
-            CellsData = data.ToArray();
-        });
-
-        AsyncGPUReadback.Request(genomesBuffer, (AsyncGPUReadbackRequest request) =>
-        {
-            if (request.hasError) {
-                Debug.LogError("Ошибка чтения с GPU");
-                return;
-            }
-
-            var data = request.GetData<GenomeData>();
-
-            // Debug.Log(Data[63].value);
-            // submit updated date
-            GenomesData = data.ToArray();
         });
     }
 
@@ -354,7 +347,7 @@ public class WorldSimulation : MonoBehaviour
         // Behavior
         simulationShader.SetTexture(kernelBehaviorIdx, "_SoilTexRead", SoilRTSource);
         simulationShader.SetTexture(kernelBehaviorIdx, "_SoilTexWrite", SoilRTTarget);
-        simulationShader.SetFloat("_Rand", Random.value);
+        simulationShader.SetFloat("_Rand", UnityEngine.Random.value);
         simulationShader.Dispatch(kernelBehaviorIdx, cx, threadGroupsY: cy, 1);
 
         // Stats
@@ -376,34 +369,8 @@ public class WorldSimulation : MonoBehaviour
             // submit updated date
             stats = data.ToArray();
         });
-
-        AsyncGPUReadback.Request(cellsBuffer, (AsyncGPUReadbackRequest request) =>
-        {
-            if (request.hasError) {
-                Debug.LogError("Ошибка чтения с GPU");
-                return;
-            }
-
-            var data = request.GetData<CellData>();
-
-            // Debug.Log(Data[63].value);
-            // submit updated date
-            CellsData = data.ToArray();
-        });
-
-        AsyncGPUReadback.Request(genomesBuffer, (AsyncGPUReadbackRequest request) =>
-        {
-            if (request.hasError) {
-                Debug.LogError("Ошибка чтения с GPU");
-                return;
-            }
-
-            var data = request.GetData<GenomeData>();
-
-            // Debug.Log(Data[63].value);
-            // submit updated date
-            GenomesData = data.ToArray();
-        });
+        // NOTE: avoid full-buffer readbacks here (expensive). Use `RequestCellAndGenome` to fetch
+        // a single cell + genome via small one-element buffers instead.
 
         FlipSoilTex();
     }
@@ -428,6 +395,8 @@ public class WorldSimulation : MonoBehaviour
         organicsDeltaBuffer?.Release();
         energyDeltaBuffer?.Release();
         killBuffer?.Release();
+        singleCellBuffer?.Release();
+        singleGenomeBuffer?.Release();
         if (soilRT0 != null) soilRT0.Release();
         if (soilRT1 != null) soilRT1.Release();
     }
@@ -521,5 +490,65 @@ public class WorldSimulation : MonoBehaviour
         int groups = Mathf.CeilToInt((float)count / 64f);
         mutationShader.Dispatch(kernelSetCellIdx, groups, 1, 1);
         setPending.Clear();
+    }
+
+    // Read a single cell at (x,y) and its genome asynchronously.
+    // onComplete is called with the CellData and GenomeData (GenomeData may be default if absent).
+    public void RequestCellAndGenome(int x, int y, Action<CellData, GenomeData> onComplete)
+    {
+        int idx = y * width + x;
+        int total = width * height;
+        if (idx < 0 || idx >= total) {
+            Debug.LogWarning($"RequestCellAndGenome: coords out of range ({x},{y})");
+            onComplete?.Invoke(default, default);
+            return;
+        }
+        // Use small one-element buffers and copy kernels to avoid allocating/reading entire buffers
+        if (kernelCopyCellIdx < 0) {
+            Debug.LogError("CopyCellKernel not available in mutationShader");
+            onComplete?.Invoke(default, default);
+            return;
+        }
+
+        // set requested index and dispatch copy kernel
+        mutationShader.SetInt("_RequestedCellIdx", idx);
+        mutationShader.Dispatch(kernelCopyCellIdx, 1, 1, 1);
+
+        // read back single cell buffer
+        AsyncGPUReadback.Request(singleCellBuffer, (AsyncGPUReadbackRequest req) =>
+        {
+            if (req.hasError) {
+                Debug.LogError("Ошибка чтения клетки с GPU");
+                onComplete?.Invoke(default, default);
+                return;
+            }
+
+            var cellArr = req.GetData<CellData>();
+            var cell = cellArr[0];
+
+            int gidx = (int)cell.genomeId;
+            if (kernelCopyGenomeIdx < 0 || genomesBuffer == null || gidx < 0 || gidx >= genomesBuffer.count)
+            {
+                onComplete?.Invoke(cell, default);
+                return;
+            }
+
+            // dispatch genome copy
+            mutationShader.SetInt("_RequestedGenomeIdx", gidx);
+            mutationShader.Dispatch(kernelCopyGenomeIdx, 1, 1, 1);
+
+            AsyncGPUReadback.Request(singleGenomeBuffer, (AsyncGPUReadbackRequest req2) =>
+            {
+                if (req2.hasError) {
+                    Debug.LogError("Ошибка чтения генома с GPU");
+                    onComplete?.Invoke(cell, default);
+                    return;
+                }
+
+                var gArr = req2.GetData<GenomeData>();
+                var genome = gArr[0];
+                onComplete?.Invoke(cell, genome);
+            });
+        });
     }
 }

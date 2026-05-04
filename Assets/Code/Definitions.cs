@@ -12,7 +12,7 @@ public struct CellData
     public int genomeId;
     public uint direction;
     public uint activeGene;
-    public uint pad0;
+    uint pad0;
 }
 
 public struct Gene {
@@ -45,6 +45,9 @@ public struct Gene {
 public unsafe struct GenomeData {
     public fixed byte genes[1024]; // 4 * 8 * 32 = 1024
     public uint cellNum;
+    uint pad0;
+    uint pad1;
+    uint pad2;
 
     public Gene GetGene(uint index)
     {

@@ -41,4 +41,7 @@ struct Gene {
 struct Genome {
     Gene genes[GENES_NUM];
     uint cellNum;
+    uint pad0;
+    uint pad1;
+    uint pad2;
 };
