@@ -49,8 +49,8 @@ public class WorldRenderer : MonoBehaviour
             blitMat.SetTexture("_SoilTex", world.SoilRTSource);
             blitMat.SetBuffer("_Cells", world.CellsBuffer);
             blitMat.SetFloat("_Blend", renderMode == RenderMode.Energy ? 1f : 0f);
-            blitMat.SetInt("_Width", world.width);
-            blitMat.SetInt("_Height", world.height);
+            blitMat.SetInteger("_Width", world.width);
+            blitMat.SetInteger("_Height", world.height);
 
             Graphics.Blit(null, worldRT, blitMat);
         }

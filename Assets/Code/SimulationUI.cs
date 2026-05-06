@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using System.Reflection;
 using UnityEngine.UI;
 
 // Simple IMGUI-based simulation controller. Provides controls and stubs
@@ -100,7 +99,7 @@ public class SimulationUI : MonoBehaviour
         }
 
         // brush input: apply while holding the brush mouse button
-        if (activeBrush != BrushMode.None && Input.GetMouseButton(brushMouseButton) && world != null)
+        if (activeBrush != BrushMode.None && Input.GetMouseButtonDown(brushMouseButton) && world != null)
         {
             // ignore clicks over the UI panel (left side)
             const float pad = 8f;
@@ -231,7 +230,7 @@ public class SimulationUI : MonoBehaviour
         }
 
         // display all fields of CellData
-        GUILayout.Label($"cellType: {inspectedCell.cellType}");
+        GUILayout.Label($"cellType: {inspectedCell.cellType.Symbol()}");
         GUILayout.Label($"energy: {inspectedCell.energy:F4}");
         GUILayout.Label($"energyFlow: {inspectedCell.energyFlow}");
         GUILayout.Label($"parentDir: {inspectedCell.parentDir}");
@@ -240,7 +239,7 @@ public class SimulationUI : MonoBehaviour
         GUILayout.Label($"activeGene: {inspectedCell.activeGene}");
 
         GUILayout.Space(60);
-        GUILayout.Label("Genome[activeGene]");
+        GUILayout.Label($"Genome#{inspectedCell.genomeId} [{inspectedCell.activeGene}]");
         genomeReadError = "";
         if (inspectedCell.genomeId == 0u)
         {
@@ -252,20 +251,20 @@ public class SimulationUI : MonoBehaviour
 
             var inspectedGene = inspectedGenome.GetGene(inspectedCell.activeGene);
 
-            GUILayout.Label($"                              {inspectedGene.GetGrowCellTypeString(0)}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
+            GUILayout.Label($"                              {inspectedGene.GetGrowCellType(0).Symbol()}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
             GUILayout.Label($"growDirections: {inspectedGene.GetGrowCellTypeString(3)}  +  {inspectedGene.GetGrowCellTypeString(1)}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
             GUILayout.Label($"                              {inspectedGene.GetGrowCellTypeString(2)}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
 
-            var cond1 = GetByte(inspectedGene.conditions,0)%52;
-            var cond1String = cond1 > 13 ? "-" : $"{cond1}";
-            GUILayout.Label($"condition 1: {cond1String} ({inspectedGene.condParam1})");
-            var cond2 = GetByte(inspectedGene.conditions,1)%52;
-            var cond2String = cond2 > 13 ? "-" : $"{cond2}";
-            GUILayout.Label($"condition 2: {cond2String} ({inspectedGene.condParam2})");
+            var cond1 = GetByte(inspectedGene.conditions, 0) % 26;
+            var cond1String = cond1 >= 13 ? "-" : $"{cond1}";
+            GUILayout.Label($"condition 1: {cond1String} ({inspectedGene.condParam1}) (raw: {GetByte(inspectedGene.conditions, 0)})");
+            var cond2 = GetByte(inspectedGene.conditions, 1) % 26;
+            var cond2String = cond2 >= 13 ? "-" : $"{cond2}";
+            GUILayout.Label($"condition 2: {cond2String} ({inspectedGene.condParam2}) (raw: {GetByte(inspectedGene.conditions, 1)})");
 
-            GUILayout.Label($"condResult: com1[{GetByte(inspectedGene.condResult,0)%24}] com2[{GetByte(inspectedGene.condResult, 1)%24}] gene1[{GetByte(inspectedGene.condResult, 2)%32}] gene2[{GetByte(inspectedGene.condResult, 3)%32}]"); // two commands in two first bites: 0 - command for success, 1 - command for fail, 2 - gene for success, 3 - gene for fail
+            GUILayout.Label($"condResult: com1[{GetByte(inspectedGene.condResult,0)%28}] com2[{GetByte(inspectedGene.condResult, 1)%28}] gene1[{GetByte(inspectedGene.condResult, 2)%32}] gene2[{GetByte(inspectedGene.condResult, 3)%32}]"); // two commands in two first bites: 0 - command for success, 1 - command for fail, 2 - gene for success, 3 - gene for fail
             GUILayout.Label($"comGenes: com1Success[{GetByte(inspectedGene.comGenes,0)%32}] com1fail[{GetByte(inspectedGene.comGenes, 1)%32}] com2Success[{GetByte(inspectedGene.comGenes, 2)%32}] com2fail[{GetByte(inspectedGene.comGenes, 3)%32}]"); // gene indicies: 0 - for first command success, 1 - for first command fail, 2 - for second command success, 3 - for second command fail
-            GUILayout.Label($"aloneCommands: com1[{GetByte(inspectedGene.aloneCommands,0)%24}] com2[{GetByte(inspectedGene.aloneCommands, 1)%24}]"); // two commands in two first bites: 0 - for success, 1 - for fail
+            GUILayout.Label($"aloneCommands: com1[{GetByte(inspectedGene.aloneCommands,0)%28}] com2[{GetByte(inspectedGene.aloneCommands, 1)%28}]"); // two commands in two first bites: 0 - for success, 1 - for fail
             GUILayout.Label($"aloneComGenes: com1Success[{GetByte(inspectedGene.aloneComGenes,0)%32}] com1fail[{GetByte(inspectedGene.aloneComGenes,1)%32}] com2success[{GetByte(inspectedGene.aloneComGenes,2)%32}] com2fail[{GetByte(inspectedGene.aloneComGenes,3)%32}]"); // gene indicies: 0 - for first command success, 1 - for first command fail, 2 - for second command success, 3 - for second command fail
 
             // unsafe
@@ -529,8 +528,8 @@ public class SimulationUI : MonoBehaviour
         };
     }
 
-    uint GetByte(uint container, uint byteIdx)
+    uint GetByte(uint container, int byteIdx)
     {
-        return (container >> (int)byteIdx * 8) & 0xFF;
+        return (container >> (byteIdx * 8)) & 0xffu;
     }
 }

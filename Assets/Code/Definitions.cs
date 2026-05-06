@@ -9,7 +9,7 @@ public struct CellData
     public float energy;
     public uint energyFlow;
     public uint parentDir;
-    public int genomeId;
+    public uint genomeId;
     public uint direction;
     public uint activeGene;
     uint pad0;
@@ -66,3 +66,18 @@ public unsafe struct GenomeData {
     }
 };
 
+public static class CellTypeExtension
+{
+    public static string Name(this CellType cellType) => cellType.ToString();
+    public static string Symbol(this CellType cellType) => cellType switch
+    {
+        CellType.Empty => "[0]",
+        CellType.Leaf => "🟢",
+        CellType.Root => "🔴",
+        CellType.Antenna => "🔵",
+        CellType.Wood => "🟤",
+        CellType.Sprout => "⚪️",
+        CellType.Seed => "🟡",
+        _ => "[-]",
+    };
+}

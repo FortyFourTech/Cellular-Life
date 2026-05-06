@@ -70,20 +70,20 @@ uint GetIntBit(uint data, uint bitIdx) {
 }
 
 uint GetIntByte(uint data, uint byteIdx) {
-    return (data >> byteIdx * 8) & 0xFF;
+    return (data >> (byteIdx * 8u)) & 0xffu;
 }
 
 uint UnpackInt1(uint data) {
-    return GetIntByte(data, 0);
+    return GetIntByte(data, 0u);
 }
 uint UnpackInt2(uint data) {
-    return GetIntByte(data, 1);
+    return GetIntByte(data, 1u);
 }
 uint UnpackInt3(uint data) {
-    return GetIntByte(data, 2);
+    return GetIntByte(data, 2u);
 }
 uint UnpackInt4(uint data) {
-    return GetIntByte(data, 3);
+    return GetIntByte(data, 3u);
 }
 
 // void PackToFloat1(inout float container, uint data) {
@@ -112,20 +112,20 @@ void SetIntBit(inout uint container, uint data, uint bitIdx) {
 }
 
 void SetIntByte(inout uint container, uint data, uint byteIdx) {
-    container = MergeByMask(container, data << (byteIdx * 8), 0xff << (byteIdx * 8));
+    container = MergeByMask(container, data << (byteIdx * 8u), 0xffu << (byteIdx * 8u));
 }
 
 void PackToInt1(inout uint container, uint data) {
-    SetIntByte(container, data, 0);
+    SetIntByte(container, data, 0u);
 }
 void PackToInt2(inout uint container, uint data) {
-    SetIntByte(container, data, 1);
+    SetIntByte(container, data, 1u);
 }
 void PackToInt3(inout uint container, uint data) {
-    SetIntByte(container, data, 2);
+    SetIntByte(container, data, 2u);
 }
 void PackToInt4(inout uint container, uint data) {
-    SetIntByte(container, data, 3);
+    SetIntByte(container, data, 3u);
 }
 // #endregion // Packing
 
@@ -186,28 +186,28 @@ Gene MutateGene(in uint2 cellPos, in Gene gene)
     uint randVal = randInt(cellPos, 101);
     // select what to mutate
     // change value
-    gene.growDirections = randIdx == 1 ? MergeByMask(gene.growDirections, randVal, 0x000000ff) : gene.growDirections;
-    gene.growDirections = randIdx == 2 ? MergeByMask(gene.growDirections, randVal, 0x0000ff00) : gene.growDirections;
-    gene.growDirections = randIdx == 3 ? MergeByMask(gene.growDirections, randVal, 0x00ff0000) : gene.growDirections;
-    gene.growDirections = randIdx == 4 ? MergeByMask(gene.growDirections, randVal, 0xff000000) : gene.growDirections;
-    gene.conditions = randIdx == 5 ? MergeByMask(gene.conditions, randVal, 0x000000ff) : gene.conditions;
-    gene.conditions = randIdx == 6 ? MergeByMask(gene.conditions, randVal, 0x0000ff00) : gene.conditions;
-    gene.condParam1 = randIdx == 7 ? randVal : gene.condParam1;
-    gene.condParam2 = randIdx == 8 ? randVal : gene.condParam2;
-    gene.condResult = randIdx == 9 ? MergeByMask(gene.condResult, randVal, 0x000000ff) : gene.condResult;
-    gene.condResult = randIdx == 10 ? MergeByMask(gene.condResult, randVal, 0x0000ff00) : gene.condResult;
-    gene.condResult = randIdx == 11 ? MergeByMask(gene.condResult, randVal, 0x00ff0000) : gene.condResult;
-    gene.condResult = randIdx == 12 ? MergeByMask(gene.condResult, randVal, 0xff000000) : gene.condResult;
-    gene.comGenes = randIdx == 13 ? MergeByMask(gene.comGenes, randVal, 0x000000ff) : gene.comGenes;
-    gene.comGenes = randIdx == 14 ? MergeByMask(gene.comGenes, randVal, 0x0000ff00) : gene.comGenes;
-    gene.comGenes = randIdx == 15 ? MergeByMask(gene.comGenes, randVal, 0x00ff0000) : gene.comGenes;
-    gene.comGenes = randIdx == 16 ? MergeByMask(gene.comGenes, randVal, 0xff000000) : gene.comGenes;
-    gene.aloneCommands = randIdx == 17 ? MergeByMask(gene.aloneCommands, randVal, 0x000000ff) : gene.aloneCommands;
-    gene.aloneCommands = randIdx == 18 ? MergeByMask(gene.aloneCommands, randVal, 0x0000ff00) : gene.aloneCommands;
-    gene.aloneComGenes = randIdx == 19 ? MergeByMask(gene.aloneComGenes, randVal, 0x000000ff) : gene.aloneComGenes;
-    gene.aloneComGenes = randIdx == 20 ? MergeByMask(gene.aloneComGenes, randVal, 0x0000ff00) : gene.aloneComGenes;
-    gene.aloneComGenes = randIdx == 21 ? MergeByMask(gene.aloneComGenes, randVal, 0x00ff0000) : gene.aloneComGenes;
-    gene.aloneComGenes = randIdx == 22 ? MergeByMask(gene.aloneComGenes, randVal, 0xff000000) : gene.aloneComGenes;
+    gene.growDirections = randIdx == 0 ? MergeByMask(gene.growDirections, randVal, 0x000000ff) : gene.growDirections;
+    gene.growDirections = randIdx == 1 ? MergeByMask(gene.growDirections, randVal, 0x0000ff00) : gene.growDirections;
+    gene.growDirections = randIdx == 2 ? MergeByMask(gene.growDirections, randVal, 0x00ff0000) : gene.growDirections;
+    gene.growDirections = randIdx == 3 ? MergeByMask(gene.growDirections, randVal, 0xff000000) : gene.growDirections;
+    gene.conditions = randIdx == 4 ? MergeByMask(gene.conditions, randVal, 0x000000ff) : gene.conditions;
+    gene.conditions = randIdx == 5 ? MergeByMask(gene.conditions, randVal, 0x0000ff00) : gene.conditions;
+    gene.condParam1 = randIdx == 6 ? randVal : gene.condParam1;
+    gene.condParam2 = randIdx == 7 ? randVal : gene.condParam2;
+    gene.condResult = randIdx == 8 ? MergeByMask(gene.condResult, randVal, 0x000000ff) : gene.condResult;
+    gene.condResult = randIdx == 9 ? MergeByMask(gene.condResult, randVal, 0x0000ff00) : gene.condResult;
+    gene.condResult = randIdx == 10 ? MergeByMask(gene.condResult, randVal, 0x00ff0000) : gene.condResult;
+    gene.condResult = randIdx == 11 ? MergeByMask(gene.condResult, randVal, 0xff000000) : gene.condResult;
+    gene.comGenes = randIdx == 12 ? MergeByMask(gene.comGenes, randVal, 0x000000ff) : gene.comGenes;
+    gene.comGenes = randIdx == 13 ? MergeByMask(gene.comGenes, randVal, 0x0000ff00) : gene.comGenes;
+    gene.comGenes = randIdx == 14 ? MergeByMask(gene.comGenes, randVal, 0x00ff0000) : gene.comGenes;
+    gene.comGenes = randIdx == 15 ? MergeByMask(gene.comGenes, randVal, 0xff000000) : gene.comGenes;
+    gene.aloneCommands = randIdx == 16 ? MergeByMask(gene.aloneCommands, randVal, 0x000000ff) : gene.aloneCommands;
+    gene.aloneCommands = randIdx == 17 ? MergeByMask(gene.aloneCommands, randVal, 0x0000ff00) : gene.aloneCommands;
+    gene.aloneComGenes = randIdx == 18 ? MergeByMask(gene.aloneComGenes, randVal, 0x000000ff) : gene.aloneComGenes;
+    gene.aloneComGenes = randIdx == 19 ? MergeByMask(gene.aloneComGenes, randVal, 0x0000ff00) : gene.aloneComGenes;
+    gene.aloneComGenes = randIdx == 20 ? MergeByMask(gene.aloneComGenes, randVal, 0x00ff0000) : gene.aloneComGenes;
+    gene.aloneComGenes = randIdx == 21 ? MergeByMask(gene.aloneComGenes, randVal, 0xff000000) : gene.aloneComGenes;
     return gene;
 }
 
@@ -215,21 +215,20 @@ Gene MutateGene(in uint2 cellPos, in Gene gene)
 // and falls back to circular overwrite if none free.
 uint AllocateGenomeSlot(in Genome genome)
 {
-    // uint prev;
-    // uint start = prev % (uint)_GenomeCapacity;
-
-    uint idx = 0;
     for (uint i = 0; i < (uint)_GenomeCapacity; ++i) {
-        if (_Genomes[idx].cellNum == 0u) {
-            _Genomes[idx] = genome;
-            idx = i;
+        uint cellNum;
+        InterlockedCompareExchange(_Genomes[i].cellNum, 1, 0, cellNum);
+        if (cellNum == 0u) {
+            _Genomes[i] = genome;
+            return i;
         }
     }
 
     // fallback overwrite
     // idx = start;
-    _Genomes[idx] = genome;
-    return idx;
+    _Genomes[0] = genome;
+    InterlockedAdd(_Genomes[0].cellNum, 1);
+    return 0;
 }
 
 // Mutate a genome and allocate it into the genomes buffer. Returns new genome id.
@@ -268,13 +267,13 @@ void CreateCell(in uint2 targetPos, uint type, uint direction, uint parentDir)
     // TODO: try to mutate
     // only on Sprout or Seed cells
     if ((type == CELLTYPE_SPROUT || type == CELLTYPE_SEED)
-        && (randInt(targetPos, _Timestamp) & 0xff == 0)) { // 25% to mutate
+        && ((randInt(targetPos, _Timestamp) & 3u) == 0)) { // 25% to mutate
         uint parentGid = _Cells[parentIdx].genomeId;
         Genome parentGenome = _Genomes[parentGid];
         uint newGid = MutateGenome(targetPos, parentGenome);
         newCell.genomeId = newGid;
         // increment ref for new genome
-        InterlockedAdd(_Genomes[newGid].cellNum, 1);
+        // InterlockedAdd(_Genomes[newGid].cellNum, 1); // already incremented in Mutate function
     } else {
         // increment ref for inherited genome
         InterlockedAdd(_Genomes[newCell.genomeId].cellNum, 1);
@@ -315,5 +314,26 @@ void KillCell(in uint2 cellPos)
 
     // clear cell
     _Cells[cellIdx] = (Cell)0;
+}
+
+void ConvertToSeed(in uint2 cellPos) {
+    uint cellIdx = cellPos.y * _Width + cellPos.x;
+
+    InterlockedAdd(_Genomes[_Cells[cellIdx].genomeId].cellNum, _Cells[cellIdx].cellType < CELLTYPE_SPROUT ? 1 : 0);
+    _Cells[cellIdx].cellType = CELLTYPE_SEED;
+}
+
+void ConvertToSprout(in uint2 cellPos) {
+    uint cellIdx = cellPos.y * _Width + cellPos.x;
+
+    InterlockedAdd(_Genomes[_Cells[cellIdx].genomeId].cellNum, _Cells[cellIdx].cellType < CELLTYPE_SPROUT ? 1 : 0);
+    _Cells[cellIdx].cellType = CELLTYPE_SPROUT;
+}
+
+void ConvertToWood(in uint2 cellPos) {
+    uint cellIdx = cellPos.y * _Width + cellPos.x;
+
+    InterlockedAdd(_Genomes[_Cells[cellIdx].genomeId].cellNum, _Cells[cellIdx].cellType >= CELLTYPE_SPROUT ? -1 : 0);
+    _Cells[cellIdx].cellType = CELLTYPE_WOOD;
 }
 // #endregion // Cell mutation

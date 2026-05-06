@@ -82,13 +82,9 @@ void KillCellsKernel(uint3 id : SV_DispatchThreadID)
     int x = xi % _Width; if (x < 0) x += _Width;
     int y = yi % _Height; if (y < 0) y += _Height;
     uint cellIndex = (uint)(y * _Width + x);
-    if (cellIndex < _Cells.Length)
-    {
-        Cell c = _Cells[cellIndex];
-        c.cellType = 0;
-        c.energy = 0.0;
-        _Cells[cellIndex] = c;
-    }
+    if (cellIndex >= _Cells.Length) return;
+
+    KillCell(uint2(x,y));
 }
 
 [numthreads(64,1,1)]

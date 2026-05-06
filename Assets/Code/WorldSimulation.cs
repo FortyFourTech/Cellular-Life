@@ -129,6 +129,7 @@ public class WorldSimulation : MonoBehaviour
         simulationShader.SetFloat("_Timestep", 0.1f);
         // genome capacity uniform for shaders
         simulationShader.SetInt("_GenomeCapacity", genomeCapacity);
+        mutationShader.SetInt("_GenomeCapacity", genomeCapacity);
 
         // bind textures and buffers for kernels that will use them
         // simulationShader.SetTexture(kernelEnergyIdx, "_SoilTexRead", soilRT0);
@@ -527,7 +528,7 @@ public class WorldSimulation : MonoBehaviour
             var cell = cellArr[0];
 
             int gidx = (int)cell.genomeId;
-            if (kernelCopyGenomeIdx < 0 || genomesBuffer == null || gidx < 0 || gidx >= genomesBuffer.count)
+            if (cell.cellType == CellType.Empty || kernelCopyGenomeIdx < 0 || genomesBuffer == null || gidx < 0 || gidx >= genomesBuffer.count)
             {
                 onComplete?.Invoke(cell, default);
                 return;
