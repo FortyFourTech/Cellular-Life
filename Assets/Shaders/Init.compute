@@ -42,15 +42,11 @@ void InitEnergyKernel(uint3 id : SV_DispatchThreadID)
 void InitCells(uint3 id : SV_DispatchThreadID)
 {
     uint2 cellPos = id.xy * 32;
-    uint genomeIdx = id.y * _CellRowCount + id.x;
-    Genome newCellGenome = GenerateRandomGenome(cellPos);
-    _Genomes[genomeIdx] = newCellGenome;
-    // mark one reference for this genome (this cell)
-    _Genomes[genomeIdx].cellNum = 1;
-    uint cellIdx = cellPos.y * _Width + cellPos.x;
+    uint cellIdx = PosToIdx(cellPos);
+
     _Cells[cellIdx] = (Cell)0;
     _Cells[cellIdx].cellType = CELLTYPE_SPROUT;
-    _Cells[cellIdx].genomeId = genomeIdx;
+    _Cells[cellIdx].genomeId = AllocateRandomGenome(cellPos);
     _Cells[cellIdx].parentDir = 0xFFFFFFFF;
     _Cells[cellIdx].energy = 0.5;
 }

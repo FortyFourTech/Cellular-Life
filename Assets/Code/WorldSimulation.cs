@@ -112,7 +112,13 @@ public class WorldSimulation : MonoBehaviour
 
         // buffers
         cellsBuffer = new ComputeBuffer(width*height, System.Runtime.InteropServices.Marshal.SizeOf(typeof(CellData)));
+        var emptyGenomes = new GenomeData[genomeCapacity];
+        for (int i = 0; i < genomeCapacity; i++)
+        {
+            emptyGenomes[i] = new GenomeData(); // Default struct constructor initializes fields (like cellNum) to 0.
+        }
         genomesBuffer = new ComputeBuffer(Mathf.Max(1, genomeCapacity), System.Runtime.InteropServices.Marshal.SizeOf(typeof(GenomeData)));
+        genomesBuffer.SetData(emptyGenomes);
         statsBuffer = new ComputeBuffer(4, sizeof(uint));
 
         // zero stats
@@ -128,6 +134,7 @@ public class WorldSimulation : MonoBehaviour
         simulationShader.SetFloat("_CriticalNrg", 1.0f);
         simulationShader.SetFloat("_Timestep", 0.1f);
         // genome capacity uniform for shaders
+        initShader.SetInt("_GenomeCapacity", genomeCapacity);
         simulationShader.SetInt("_GenomeCapacity", genomeCapacity);
         mutationShader.SetInt("_GenomeCapacity", genomeCapacity);
 

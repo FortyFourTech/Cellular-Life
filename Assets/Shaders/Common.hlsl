@@ -134,11 +134,11 @@ void PackToInt4(inout uint container, uint data) {
 // 1 11 ( x, 0) right   right
 // 2 00 ( 0,-y) back    down
 // 3 01 (-x, 0) left    left
-uint RotateDir(in uint baseDir, in int relDir) {
+uint RotateDir(uint baseDir, int relDir) {
     return (baseDir + relDir + 4) % 4;
 }
 
-uint2 ShiftCoord(in uint2 inPos, in uint dir) {
+uint2 ShiftCoord(uint2 inPos, uint dir) {
     static const int2 offsets[4] = {
         int2( 0,  1), // 0
         int2( 1,  0), // 1
@@ -152,7 +152,28 @@ uint2 ShiftCoord(in uint2 inPos, in uint dir) {
 // #endregion // Direction
 
 // #region Genome funcs
-Gene GenerateRandomGene(in uint2 cellPos, uint geneIdx)
+// Allocate a new genome slot _Genomes. Tries to find a slot with zero refs
+// and falls back to circular overwrite if none free.
+uint AllocateGenomeSlot(Genome genome)
+{
+    for (uint i = 0; i < (uint)_GenomeCapacity; ++i) {
+        uint cellNum;
+        InterlockedCompareExchange(_Genomes[i].cellNum, 0, 1, cellNum);
+        if (cellNum == 0u) {
+            genome.cellNum = 1;
+            _Genomes[i] = genome;
+            return i;
+        }
+    }
+
+    // fallback overwrite
+    // idx = start;
+    _Genomes[0] = genome;
+    InterlockedAdd(_Genomes[0].cellNum, 1);
+    return 0;
+}
+
+Gene GenerateRandomGene(uint2 cellPos, uint geneIdx)
 {
     Gene gene = (Gene)0;
     gene.growDirections = randInt(cellPos, geneIdx);
@@ -168,7 +189,7 @@ Gene GenerateRandomGene(in uint2 cellPos, uint geneIdx)
     return gene;
 }
 
-Genome GenerateRandomGenome(in uint2 cellPos)
+Genome GenerateRandomGenome(uint2 cellPos)
 {
     Genome genome = (Genome)0;
     for (int gIdx = 0; gIdx < 32; gIdx++)
@@ -180,7 +201,13 @@ Genome GenerateRandomGenome(in uint2 cellPos)
     return genome;
 }
 
-Gene MutateGene(in uint2 cellPos, in Gene gene)
+uint AllocateRandomGenome(uint2 cellPos)
+{
+    return AllocateGenomeSlot(GenerateRandomGenome(cellPos));
+}
+
+
+Gene MutateGene(uint2 cellPos, Gene gene)
 {
     uint randIdx = randInt(cellPos, 100) % 22;
     uint randVal = randInt(cellPos, 101);
@@ -211,45 +238,26 @@ Gene MutateGene(in uint2 cellPos, in Gene gene)
     return gene;
 }
 
-// Allocate a new genome slot in _Genomes. Tries to find a slot with zero refs
-// and falls back to circular overwrite if none free.
-uint AllocateGenomeSlot(in Genome genome)
-{
-    for (uint i = 0; i < (uint)_GenomeCapacity; ++i) {
-        uint cellNum;
-        InterlockedCompareExchange(_Genomes[i].cellNum, 1, 0, cellNum);
-        if (cellNum == 0u) {
-            _Genomes[i] = genome;
-            return i;
-        }
-    }
-
-    // fallback overwrite
-    // idx = start;
-    _Genomes[0] = genome;
-    InterlockedAdd(_Genomes[0].cellNum, 1);
-    return 0;
-}
-
 // Mutate a genome and allocate it into the genomes buffer. Returns new genome id.
-uint MutateGenome(in uint2 cellPos, in Genome inGenome)
+uint MutateGenome(uint2 cellPos, uint genomeId)
 {
-    // Genome newGenome = inGenome;
+    Genome newGenome = _Genomes[genomeId];
+    newGenome.cellNum = 0;
     // select random gene
     uint randIdx = randInt(cellPos, _Timestamp) % 32;
-    Gene gene = inGenome.genes[randIdx];
+    Gene gene = newGenome.genes[randIdx];
     gene = MutateGene(cellPos, gene);
-    Gene genomeGenes[] = inGenome.genes;
+    Gene genomeGenes[] = newGenome.genes;
     genomeGenes[randIdx] = gene;
-    inGenome.genes = genomeGenes;
+    newGenome.genes = genomeGenes;
 
-    uint newId = AllocateGenomeSlot(inGenome);
+    uint newId = AllocateGenomeSlot(newGenome);
     return newId;
 }
 // #endregion // Genome funcs
 
 // #region Cell mutation
-void CreateCell(in uint2 targetPos, uint type, uint direction, uint parentDir)
+void CreateCell(uint2 targetPos, uint type, uint direction, uint parentDir)
 {
     uint2 parentPos = ShiftCoord(targetPos, parentDir);
     uint parentIdx = parentPos.y * _Width + parentPos.x;
@@ -260,29 +268,31 @@ void CreateCell(in uint2 targetPos, uint type, uint direction, uint parentDir)
 
     // by default inherit parent's genome id
     newCell.genomeId = _Cells[parentIdx].genomeId;
+    newCell.activeGene = 0u;
     newCell.parentDir = parentDir;
     newCell.energy = 0.5;
     SetIntBit(newCell.energyFlow, type != CELLTYPE_SPROUT && type != CELLTYPE_SEED, parentDir);
 
     // TODO: try to mutate
     // only on Sprout or Seed cells
-    if ((type == CELLTYPE_SPROUT || type == CELLTYPE_SEED)
-        && ((randInt(targetPos, _Timestamp) & 3u) == 0)) { // 25% to mutate
-        uint parentGid = _Cells[parentIdx].genomeId;
-        Genome parentGenome = _Genomes[parentGid];
-        uint newGid = MutateGenome(targetPos, parentGenome);
-        newCell.genomeId = newGid;
-        // increment ref for new genome
-        // InterlockedAdd(_Genomes[newGid].cellNum, 1); // already incremented in Mutate function
-    } else {
-        // increment ref for inherited genome
-        InterlockedAdd(_Genomes[newCell.genomeId].cellNum, 1);
+    if (type >= CELLTYPE_SPROUT) {
+        if ((randInt(targetPos, _Timestamp) & 3u) == 0) { // 25% to mutate
+            // uint parentGid = _Cells[parentIdx].genomeId;
+            // Genome parentGenome = _Genomes[parentGid];
+            uint newGid = MutateGenome(targetPos, _Cells[parentIdx].genomeId);
+            newCell.genomeId = newGid;
+            // increment ref for new genome
+            // InterlockedAdd(_Genomes[newGid].cellNum, 1); // already incremented Mutate function
+        } else {
+            // increment ref for inherited genome
+            InterlockedAdd(_Genomes[newCell.genomeId].cellNum, 1u);
+        }
     }
 
     _Cells[targetIdx] = newCell;
 }
 
-void KillCell(in uint2 cellPos)
+void KillCell(uint2 cellPos)
 {
     uint cellIdx = cellPos.y * _Width + cellPos.x;
     // Cell cell = _Cells[cellIdx];
@@ -310,27 +320,27 @@ void KillCell(in uint2 cellPos)
 
     // decrement genome refcount
     uint oldGid = _Cells[cellIdx].genomeId;
-    InterlockedAdd(_Genomes[oldGid].cellNum, (uint)-1);
+    InterlockedAdd(_Genomes[oldGid].cellNum, (uint)-1 * (_Cells[cellIdx].cellType >= CELLTYPE_SPROUT));
 
     // clear cell
     _Cells[cellIdx] = (Cell)0;
 }
 
-void ConvertToSeed(in uint2 cellPos) {
+void ConvertToSeed(uint2 cellPos) {
     uint cellIdx = cellPos.y * _Width + cellPos.x;
 
     InterlockedAdd(_Genomes[_Cells[cellIdx].genomeId].cellNum, _Cells[cellIdx].cellType < CELLTYPE_SPROUT ? 1 : 0);
     _Cells[cellIdx].cellType = CELLTYPE_SEED;
 }
 
-void ConvertToSprout(in uint2 cellPos) {
+void ConvertToSprout(uint2 cellPos) {
     uint cellIdx = cellPos.y * _Width + cellPos.x;
 
     InterlockedAdd(_Genomes[_Cells[cellIdx].genomeId].cellNum, _Cells[cellIdx].cellType < CELLTYPE_SPROUT ? 1 : 0);
     _Cells[cellIdx].cellType = CELLTYPE_SPROUT;
 }
 
-void ConvertToWood(in uint2 cellPos) {
+void ConvertToWood(uint2 cellPos) {
     uint cellIdx = cellPos.y * _Width + cellPos.x;
 
     InterlockedAdd(_Genomes[_Cells[cellIdx].genomeId].cellNum, _Cells[cellIdx].cellType >= CELLTYPE_SPROUT ? -1 : 0);

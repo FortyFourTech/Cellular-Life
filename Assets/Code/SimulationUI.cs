@@ -241,7 +241,7 @@ public class SimulationUI : MonoBehaviour
         GUILayout.Space(60);
         GUILayout.Label($"Genome#{inspectedCell.genomeId} [{inspectedCell.activeGene}]");
         genomeReadError = "";
-        if (inspectedCell.genomeId == 0u)
+        if (inspectedGenome.cellNum == 0u)
         {
             GUILayout.Label("<no genome>");
         }
