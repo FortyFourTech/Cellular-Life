@@ -14,33 +14,33 @@ static const uint COND_NUM = 13u;
 static const uint COMM_NUM = 5u;
 static const uint SINGLE_COMM_NUM = 5u;
 
-void SetActiveGene(in uint2 cellPos, uint geneIdx) {
+void SetActiveGene(uint2 cellPos, uint geneIdx) {
     uint cellIdx = PosToIdx(cellPos);
     // Cell cell = _Cells[cellIdx];
     _Cells[cellIdx].activeGene = geneIdx  % GENES_NUM;
 }
 
 // #region Gene conditions
-bool CondOrgNrg(in uint2 cellPos) { // soil has more organics than energy
+bool CondOrgNrg(uint2 cellPos) { // soil has more organics than energy
     int2 p = int2(cellPos.x, cellPos.y);
     float2 soil = _SoilTexRead[p];
     return soil.x > soil.y;
 }
 
-bool CondNrgOrg(in uint2 cellPos) { // soil has more energy than organics
+bool CondNrgOrg(uint2 cellPos) { // soil has more energy than organics
     int2 p = int2(cellPos.x, cellPos.y);
     float2 soil = _SoilTexRead[p];
     return soil.y > soil.x;
 }
 
-bool CondObstacle1(in uint2 cellPos) { // has obstacle in forward direction
+bool CondObstacle1(uint2 cellPos) { // has obstacle forward direction
     uint cellIdx = PosToIdx(cellPos);
     uint cellDir = _Cells[cellIdx].direction;
     uint2 targetPos = ShiftCoord(cellPos, cellDir);
     uint tidx = PosToIdx(targetPos);
     return _Cells[tidx].cellType != 0;
 }
-bool CondObstacle2(in uint2 cellPos) { // has obstacle in left direction
+bool CondObstacle2(uint2 cellPos) { // has obstacle left direction
     uint cellIdx = PosToIdx(cellPos);
     uint cellDir = _Cells[cellIdx].direction;
     uint left = RotateDir(cellDir, 3);
@@ -48,7 +48,7 @@ bool CondObstacle2(in uint2 cellPos) { // has obstacle in left direction
     uint tidx = PosToIdx(targetPos);
     return _Cells[tidx].cellType != 0;
 }
-bool CondObstacle4(in uint2 cellPos) { // has obstacle in right direction
+bool CondObstacle4(uint2 cellPos) { // has obstacle right direction
     uint cellIdx = PosToIdx(cellPos);
     uint cellDir = _Cells[cellIdx].direction;
     uint right = RotateDir(cellDir, 1);
@@ -56,7 +56,7 @@ bool CondObstacle4(in uint2 cellPos) { // has obstacle in right direction
     uint tidx = PosToIdx(targetPos);
     return _Cells[tidx].cellType != 0;
 }
-bool CondObstacleFree(in uint2 cellPos) { // no obstacle in any direction
+bool CondObstacleFree(uint2 cellPos) { // no obstacle any direction
     for (uint rel = 0; rel < 4; ++rel) {
         uint2 targetPos = ShiftCoord(cellPos, rel);
         uint tidx = PosToIdx(targetPos);
@@ -64,7 +64,7 @@ bool CondObstacleFree(in uint2 cellPos) { // no obstacle in any direction
     }
     return true;
 }
-bool CondOrgCompare(in uint2 cellPos, in float condParam) { // compare organics amount in directions based on param
+bool CondOrgCompare(uint2 cellPos, float condParam) { // compare organics amount directions based on param
     uint cellIdx = PosToIdx(cellPos);
     uint cellDir = _Cells[cellIdx].direction;
     // condParam used as selector: <0.5 => compare forward vs left, else forward vs right
@@ -75,7 +75,7 @@ bool CondOrgCompare(in uint2 cellPos, in float condParam) { // compare organics 
     float2 bSoil = _SoilTexRead[int2(bCoord.x, bCoord.y)];
     return aSoil.x > bSoil.x;
 }
-bool CondNrgCompare(in uint2 cellPos, in float condParam) { // compare energy amount in directions based on param
+bool CondNrgCompare(uint2 cellPos, float condParam) { // compare energy amount directions based on param
     uint cellIdx = PosToIdx(cellPos);
     uint cellDir = _Cells[cellIdx].direction;
     uint bRel = condParam < 0.5 ? 3 : 1;
@@ -85,15 +85,15 @@ bool CondNrgCompare(in uint2 cellPos, in float condParam) { // compare energy am
     float2 bSoil = _SoilTexRead[int2(bCoord.x, bCoord.y)];
     return aSoil.y > bSoil.y;
 }
-bool CondOrgAmount(in uint2 cellPos, in float condParam) { // organics amount in cell is more then param*2
+bool CondOrgAmount(uint2 cellPos, float condParam) { // organics amount cell is more then param*2
     float2 soil = _SoilTexRead[int2(cellPos.x, cellPos.y)];
     return soil.x > condParam * 2.0;
 }
-bool CondNrgAmount(in uint2 cellPos, in float condParam) { // energy amount in cell is more then param*2
+bool CondNrgAmount(uint2 cellPos, float condParam) { // energy amount cell is more then param*2
     float2 soil = _SoilTexRead[int2(cellPos.x, cellPos.y)];
     return soil.y > condParam * 2.0;
 }
-bool CondOrgAmountAround(in uint2 cellPos, in float condParam) { // organics amount in 3*3 is more then param*2
+bool CondOrgAmountAround(uint2 cellPos, float condParam) { // organics amount 3*3 is more then param*2
     float sum = 0.0;
     for (int oy = -1; oy <= 1; ++oy) {
         for (int ox = -1; ox <= 1; ++ox) {
@@ -105,7 +105,7 @@ bool CondOrgAmountAround(in uint2 cellPos, in float condParam) { // organics amo
     }
     return sum > condParam * 2.0;
 }
-bool CondNrgAmountAround(in uint2 cellPos, in float condParam) { // energy amount in 3*3 is more then param*2
+bool CondNrgAmountAround(uint2 cellPos, float condParam) { // energy amount 3*3 is more then param*2
     float sum = 0.0;
     for (int oy = -1; oy <= 1; ++oy) {
         for (int ox = -1; ox <= 1; ++ox) {
@@ -117,13 +117,13 @@ bool CondNrgAmountAround(in uint2 cellPos, in float condParam) { // energy amoun
     }
     return sum > condParam * 2.0;
 }
-bool CondRand(in uint2 cellPos, in float condParam) { // random number is more then param
+bool CondRand(uint2 cellPos, float condParam) { // random number is more then param
     float r = randFloat(cellPos, condParam);
     return r > condParam;
 }
 // #endregion // Gene conditions
 
-bool CheckGeneCondition(in uint2 cellPos, in uint condId, in float condParam) {
+bool CheckGeneCondition(uint2 cellPos, uint condId, float condParam) {
     // uint cellIdx = PosToIdx(cellPos);
     // Cell cell = _Cells[cellIdx];
 
@@ -147,7 +147,7 @@ bool CheckGeneCondition(in uint2 cellPos, in uint condId, in float condParam) {
 }
 
 // #region Gene commands
-bool CommandMove(in uint2 cellPos/* , uint moveDir */) {
+bool CommandMove(uint2 cellPos/* , uint moveDir */) {
     uint cellIdx = PosToIdx(cellPos);
     // Cell cell = _Cells[cellIdx];
 
@@ -165,14 +165,14 @@ bool CommandMove(in uint2 cellPos/* , uint moveDir */) {
 
     return true;
 }
-bool CommandRotate(in uint2 cellPos, uint relDir) {
+bool CommandRotate(uint2 cellPos, uint relDir) {
     uint cellIdx = PosToIdx(cellPos);
     // Cell cell = _Cells[cellIdx];
 
     _Cells[cellIdx].direction = RotateDir(_Cells[cellIdx].direction, _Cells[cellIdx].cellType > 4 ? relDir : 0);
     return _Cells[cellIdx].parentDir < 4 && _Cells[cellIdx].cellType > 4;
 }
-bool CommandGrow(in uint2 cellPos) {
+bool CommandGrow(uint2 cellPos) {
     uint cellIdx = PosToIdx(cellPos);
     // Cell cell = _Cells[cellIdx];
 
@@ -191,7 +191,7 @@ bool CommandGrow(in uint2 cellPos) {
     for (int i = 0; i < 4; i++) {
         uint typeToCreate = directionTypes[i];
         uint createDir = RotateDir(i, cellDir);
-        uint2 targetCoord = i == 2 ? cellPos : ShiftCoord(cellPos, createDir);
+        uint2 targetCoord = ShiftCoord(cellPos, createDir);
         uint targetIdx = PosToIdx(targetCoord);
         if (typeToCreate == 0 || typeToCreate == CELLTYPE_WOOD || typeToCreate > CELLTYPE_SEED
             || _Cells[cellIdx].energy < ENERGY_GROW
@@ -214,23 +214,23 @@ bool CommandGrow(in uint2 cellPos) {
 
     return true;
 }
-bool CommandSkip(in uint2 cellPos) {
+bool CommandSkip(uint2 cellPos) {
     return true;
 }
-bool CommandDie(in uint2 cellPos) {
+bool CommandDie(uint2 cellPos) {
     KillCell(cellPos);
     return true;
 }
-bool CommandBecomeSeed(in uint2 cellPos) {
+bool CommandBecomeSeed(uint2 cellPos) {
     ConvertToSeed(cellPos);
     return true;
 }
-bool CommandSendSeed(in uint2 cellPos) {
+bool CommandSendSeed(uint2 cellPos) {
     return true; // TODO: implement
 }
 // #endregion // Gene commands
 
-bool ExecuteCommand(in uint2 cellPos, in uint commandId, bool single) {
+bool ExecuteCommand(uint2 cellPos, uint commandId, bool single) {
     uint cellIdx = PosToIdx(cellPos);
     // Cell cell = _Cells[cellIdx];
 
@@ -258,7 +258,7 @@ bool ExecuteCommand(in uint2 cellPos, in uint commandId, bool single) {
     return false;
 }
 
-void ExecuteGene(in uint2 cellPos, in Gene gene)
+void ExecuteGene(uint2 cellPos, Gene gene)
 {
     // CommandMove(cellPos);
     // CommandGrow(cellPos);
