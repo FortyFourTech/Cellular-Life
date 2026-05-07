@@ -153,8 +153,8 @@ uint2 ShiftCoord(uint2 inPos, uint dir) {
 
 // #region Genome funcs
 // Allocate a new genome slot _Genomes. Tries to find a slot with zero refs
-// and falls back to circular overwrite if none free.
-uint AllocateGenomeSlot(Genome genome)
+// and overrides genomeId if found one.
+uint AllocateGenomeSlot(Genome genome, uint sourceGenomeId)
 {
     for (uint i = 0; i < (uint)_GenomeCapacity; ++i) {
         uint cellNum;
@@ -166,11 +166,8 @@ uint AllocateGenomeSlot(Genome genome)
         }
     }
 
-    // fallback overwrite
-    // idx = start;
-    _Genomes[0] = genome;
-    InterlockedAdd(_Genomes[0].cellNum, 1);
-    return 0;
+    InterlockedAdd(_Genomes[sourceGenomeId].cellNum, 1);
+    return sourceGenomeId;
 }
 
 Gene GenerateRandomGene(uint2 cellPos, uint geneIdx)
@@ -203,7 +200,7 @@ Genome GenerateRandomGenome(uint2 cellPos)
 
 uint AllocateRandomGenome(uint2 cellPos)
 {
-    return AllocateGenomeSlot(GenerateRandomGenome(cellPos));
+    return AllocateGenomeSlot(GenerateRandomGenome(cellPos), 0);
 }
 
 
@@ -251,7 +248,7 @@ uint MutateGenome(uint2 cellPos, uint genomeId)
     genomeGenes[randIdx] = gene;
     newGenome.genes = genomeGenes;
 
-    uint newId = AllocateGenomeSlot(newGenome);
+    uint newId = AllocateGenomeSlot(newGenome, genomeId);
     return newId;
 }
 // #endregion // Genome funcs
@@ -273,8 +270,7 @@ void CreateCell(uint2 targetPos, uint type, uint direction, uint parentDir)
     newCell.energy = 0.5;
     SetIntBit(newCell.energyFlow, type != CELLTYPE_SPROUT && type != CELLTYPE_SEED, parentDir);
 
-    // TODO: try to mutate
-    // only on Sprout or Seed cells
+    // mutate only on Sprout or Seed cells
     if (type >= CELLTYPE_SPROUT) {
         if ((randInt(targetPos, _Timestamp) & 3u) == 0) { // 25% to mutate
             // uint parentGid = _Cells[parentIdx].genomeId;

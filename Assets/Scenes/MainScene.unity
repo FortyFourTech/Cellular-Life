@@ -588,9 +588,9 @@ MonoBehaviour:
   initShader: {fileID: 7200000, guid: f15712f49a3e6144a82d36a478656ac2, type: 3}
   simulationShader: {fileID: 7200000, guid: 1b015c1b81519de4a82b98a277ea3570, type: 3}
   mutationShader: {fileID: 7200000, guid: ddbb8936f8a47364eae1f178b6dcc868, type: 3}
-  width: 1280
-  height: 1280
-  genomeCapacity: 51200
+  width: 512
+  height: 512
+  genomeCapacity: 262144
 --- !u!1 &1011163764
 GameObject:
   m_ObjectHideFlags: 0
