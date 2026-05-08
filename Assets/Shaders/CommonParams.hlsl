@@ -2,7 +2,7 @@
 
 #include "Defines.hlsl"
 
-cbuffer CommonParams
+cbuffer _SimParams
 {
     int _Width;
     int _Height;
@@ -10,6 +10,7 @@ cbuffer CommonParams
     float _Timestamp;
     float _Rand;
     int _GenomeCapacity;
+    uint2 pad34;
 }
 
 RWTexture2D<float2> _SoilTexRead;// x=organics, y=soilEnergy

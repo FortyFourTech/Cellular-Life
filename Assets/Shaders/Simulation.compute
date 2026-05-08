@@ -9,7 +9,7 @@
 #pragma kernel TransportKernel
 #pragma kernel AbsorptionKernel
 #pragma kernel DeathKernel
-#pragma kernel BehaviorKernel
+// #pragma kernel BehaviorKernel
 #pragma kernel StatsKernel
 
 #include "Defines.hlsl"
@@ -26,7 +26,7 @@ cbuffer SimulationParams
 RWStructuredBuffer<uint> _Stats; // small stats buffer
 
 #include "Common.hlsl"
-#include "CellBehavior.hlsl"
+// #include "CellBehavior.hlsl"
 
 [numthreads(8,8,1)]
 void DiffuseEnergyKernel(uint3 id : SV_DispatchThreadID)
@@ -168,16 +168,16 @@ void DeathKernel(uint3 id : SV_DispatchThreadID)
     }
 }
 
-[numthreads(32,32,1)]
-void BehaviorKernel(uint3 id : SV_DispatchThreadID)
-{
-    uint cellIdx = PosToIdx(id.xy);
-    Cell c = _Cells[cellIdx];
+// [numthreads(32,32,1)]
+// void BehaviorKernel(uint3 id : SV_DispatchThreadID)
+// {
+//     uint cellIdx = PosToIdx(id.xy);
+//     Cell c = _Cells[cellIdx];
 
-    if (c.cellType != CELLTYPE_SPROUT) return; // only sprouts
+//     if (c.cellType != CELLTYPE_SPROUT) return; // only sprouts
 
-    ExecuteGene(id.xy, _Genomes[c.genomeId].genes[c.activeGene]);
-}
+//     ExecuteGene(id.xy, _Genomes[c.genomeId].genes[c.activeGene]);
+// }
 
 [numthreads(32,32,1)]
 void StatsKernel(uint3 id : SV_DispatchThreadID)

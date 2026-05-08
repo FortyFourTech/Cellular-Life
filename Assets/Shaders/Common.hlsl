@@ -254,17 +254,15 @@ uint MutateGenome(uint2 cellPos, uint genomeId)
 // #endregion // Genome funcs
 
 // #region Cell mutation
-void CreateCell(uint2 targetPos, uint type, uint direction, uint parentDir)
+void CreateCell(uint2 targetPos, uint type, uint direction, uint parentDir, uint genomeId)
 {
-    uint2 parentPos = ShiftCoord(targetPos, parentDir);
-    uint parentIdx = parentPos.y * _Width + parentPos.x;
-    uint targetIdx = targetPos.y * _Width + targetPos.x;
+    uint targetIdx = PosToIdx(targetPos);
 
     Cell newCell = (Cell)0;
     newCell.cellType = type;
 
     // by default inherit parent's genome id
-    newCell.genomeId = _Cells[parentIdx].genomeId;
+    newCell.genomeId = genomeId;
     newCell.activeGene = 0u;
     newCell.parentDir = parentDir;
     newCell.energy = 0.5;
@@ -276,7 +274,7 @@ void CreateCell(uint2 targetPos, uint type, uint direction, uint parentDir)
         if ((randInt(targetPos, _Timestamp) & 3u) == 0) { // 25% to mutate
             // uint parentGid = _Cells[parentIdx].genomeId;
             // Genome parentGenome = _Genomes[parentGid];
-            uint newGid = MutateGenome(targetPos, _Cells[parentIdx].genomeId);
+            uint newGid = MutateGenome(targetPos, genomeId);
             newCell.genomeId = newGid;
             // increment ref for new genome
             // InterlockedAdd(_Genomes[newGid].cellNum, 1); // already incremented Mutate function

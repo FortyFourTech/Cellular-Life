@@ -52,3 +52,10 @@ struct Genome {
     uint pad1;
     uint pad2;
 };
+
+struct CommandEntry {
+    uint commandId;
+    uint successGene;
+    uint failGene;
+    uint pad0;
+};

@@ -262,9 +262,9 @@ public class SimulationUI : MonoBehaviour
             var cond2String = cond2 >= 13 ? "-" : $"{cond2}";
             GUILayout.Label($"condition 2: {cond2String} ({inspectedGene.condParam2}) (raw: {GetByte(inspectedGene.conditions, 1)})");
 
-            GUILayout.Label($"condResult: com1[{GetByte(inspectedGene.condResult,0)%28}] com2[{GetByte(inspectedGene.condResult, 1)%28}] gene1[{GetByte(inspectedGene.condResult, 2)%32}] gene2[{GetByte(inspectedGene.condResult, 3)%32}]"); // two commands in two first bites: 0 - command for success, 1 - command for fail, 2 - gene for success, 3 - gene for fail
+            GUILayout.Label($"condResult: com1[{GetByte(inspectedGene.condResult,0)%26}] com2[{GetByte(inspectedGene.condResult, 1)%26}] gene1[{GetByte(inspectedGene.condResult, 2)%32}] gene2[{GetByte(inspectedGene.condResult, 3)%32}]"); // two commands in two first bites: 0 - command for success, 1 - command for fail, 2 - gene for success, 3 - gene for fail
             GUILayout.Label($"comGenes: com1Success[{GetByte(inspectedGene.comGenes,0)%32}] com1fail[{GetByte(inspectedGene.comGenes, 1)%32}] com2Success[{GetByte(inspectedGene.comGenes, 2)%32}] com2fail[{GetByte(inspectedGene.comGenes, 3)%32}]"); // gene indicies: 0 - for first command success, 1 - for first command fail, 2 - for second command success, 3 - for second command fail
-            GUILayout.Label($"aloneCommands: com1[{GetByte(inspectedGene.aloneCommands,0)%28}] com2[{GetByte(inspectedGene.aloneCommands, 1)%28}]"); // two commands in two first bites: 0 - for success, 1 - for fail
+            GUILayout.Label($"aloneCommands: com1[{GetByte(inspectedGene.aloneCommands,0)%20}] com2[{GetByte(inspectedGene.aloneCommands, 1)%20}]"); // two commands in two first bites: 0 - for success, 1 - for fail
             GUILayout.Label($"aloneComGenes: com1Success[{GetByte(inspectedGene.aloneComGenes,0)%32}] com1fail[{GetByte(inspectedGene.aloneComGenes,1)%32}] com2success[{GetByte(inspectedGene.aloneComGenes,2)%32}] com2fail[{GetByte(inspectedGene.aloneComGenes,3)%32}]"); // gene indicies: 0 - for first command success, 1 - for first command fail, 2 - for second command success, 3 - for second command fail
 
             // unsafe

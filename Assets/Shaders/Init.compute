@@ -48,7 +48,7 @@ void InitCells(uint3 id : SV_DispatchThreadID)
     _Cells[cellIdx].cellType = CELLTYPE_SPROUT;
     _Cells[cellIdx].genomeId = AllocateRandomGenome(cellPos);
     _Cells[cellIdx].parentDir = 0xFFFFFFFF;
-    _Cells[cellIdx].energy = 0.5;
+    _Cells[cellIdx].energy = 10.0;
 }
 
 [numthreads(32,32,1)]

@@ -81,3 +81,22 @@ public static class CellTypeExtension
         _ => "[-]",
     };
 }
+
+public struct SimParams
+{
+    public int _Width;
+    public int _Height;
+    public float _Timestep;
+    public float _Timestamp;
+    public float _Rand;
+    public int _GenomeCapacity;
+    uint _Pad3;
+    uint _Pad4;
+}
+
+struct CommandEntry {
+    uint commandId;
+    uint successGene;
+    uint failGene;
+    uint pad0;
+};

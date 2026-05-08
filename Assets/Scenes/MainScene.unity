@@ -587,6 +587,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WorldSimulation
   initShader: {fileID: 7200000, guid: f15712f49a3e6144a82d36a478656ac2, type: 3}
   simulationShader: {fileID: 7200000, guid: 1b015c1b81519de4a82b98a277ea3570, type: 3}
+  behaviorShader: {fileID: 7200000, guid: bf769b9a091bb304f8f2a0fdf641ca2c, type: 3}
   mutationShader: {fileID: 7200000, guid: ddbb8936f8a47364eae1f178b6dcc868, type: 3}
   width: 512
   height: 512
