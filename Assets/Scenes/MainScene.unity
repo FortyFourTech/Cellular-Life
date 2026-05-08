@@ -637,9 +637,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WorldRenderer
   world: {fileID: 852852090}
   soilMaterial: {fileID: 2100000, guid: 5f475d57bb2e03a4a98c6e04ea2bc55a, type: 2}
-  soilRT: {fileID: 8400000, guid: d3a22267b4cd43244abf738d7528aab5, type: 2}
-  cellMaterial: {fileID: 2100000, guid: f492a3e8a35fee84f980a089bb0af3c1, type: 2}
-  cellRT: {fileID: 8400000, guid: b297b23c0945779448132c3f76569080, type: 2}
+  energyMaterial: {fileID: 2100000, guid: 841179f692e9cff4fb5132e58def43c0, type: 2}
   worldMaterial: {fileID: 2100000, guid: 4b825846d257b5244b94bd28a04f3186, type: 2}
   worldRT: {fileID: 8400000, guid: cb975d30355b06742becaa6a85f6bf3a, type: 2}
   renderMode: 0

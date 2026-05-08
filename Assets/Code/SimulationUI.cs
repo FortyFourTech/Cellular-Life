@@ -29,7 +29,7 @@ public class SimulationUI : MonoBehaviour
     public float brushDelta = 1.0f;
 
     // Visualization toggles (placeholders)
-    public WorldRenderer.RenderMode activeRenderMode = WorldRenderer.RenderMode.Full;
+    public WorldRenderer.RenderMode activeRenderMode = WorldRenderer.RenderMode.CellsFull;
     public bool showEnergyFlow = false;
 
     // Mutation / genetics
@@ -159,7 +159,7 @@ public class SimulationUI : MonoBehaviour
 
         GUILayout.Space(6);
         GUILayout.Label("Visualization", GUI.skin.label);
-        activeRenderMode = (WorldRenderer.RenderMode)GUILayout.SelectionGrid((int)activeRenderMode, Enum.GetNames(typeof(WorldRenderer.RenderMode)), 3);
+        activeRenderMode = (WorldRenderer.RenderMode)GUILayout.SelectionGrid((int)activeRenderMode, Enum.GetNames(typeof(WorldRenderer.RenderMode)), 2);
         // showEnergyFlow = GUILayout.Toggle(showEnergyFlow, "Show Energy Flow");
         wRenderer.renderMode = activeRenderMode;
 

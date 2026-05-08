@@ -5,14 +5,12 @@ public class WorldRenderer : MonoBehaviour
 {
     public WorldSimulation world;
     public Material soilMaterial;
-    public RenderTexture soilRT;
-    public Material cellMaterial;
-    public RenderTexture cellRT;
+    public Material energyMaterial;
     public Material worldMaterial;
     public RenderTexture worldRT;
 
-    public enum RenderMode { Full, Energy, Organics };
-    public RenderMode renderMode = RenderMode.Full;
+    public enum RenderMode { CellsFull, CellsEnergy, SoilOrganics, SoilEnergy };
+    public RenderMode renderMode = RenderMode.CellsFull;
 
     Mesh quadMesh;
     ComputeBuffer readBuffer;
@@ -41,14 +39,15 @@ public class WorldRenderer : MonoBehaviour
         {
             var blitMat = renderMode switch
             {
-                RenderMode.Full => worldMaterial,
-                RenderMode.Energy => soilMaterial,
-                RenderMode.Organics => soilMaterial,
+                RenderMode.CellsFull => worldMaterial,
+                RenderMode.CellsEnergy => energyMaterial,
+                RenderMode.SoilOrganics => soilMaterial,
+                RenderMode.SoilEnergy => soilMaterial,
                 _ => throw new System.NotImplementedException(),
             };
             blitMat.SetTexture("_SoilTex", world.SoilRTSource);
             blitMat.SetBuffer("_Cells", world.CellsBuffer);
-            blitMat.SetFloat("_Blend", renderMode == RenderMode.Energy ? 1f : 0f);
+            blitMat.SetFloat("_Blend", renderMode == RenderMode.SoilEnergy ? 1f : 0f);
             blitMat.SetInteger("_Width", world.width);
             blitMat.SetInteger("_Height", world.height);
 
