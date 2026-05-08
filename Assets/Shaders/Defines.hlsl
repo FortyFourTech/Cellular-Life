@@ -7,13 +7,18 @@
 #define CELLTYPE_SPROUT     5
 #define CELLTYPE_SEED       6
 
-#define ENERGY_GROW         0.1
+#define ENERGY_GROW         0.5
 
 #define ABSORB_SOIL_ORGANICS 0.05
 #define ABSORB_SOIL_ENERGY  0.05
 #define ABSORB_LIFE_ENERGY  0.05
 
 #define GENES_NUM 32
+
+#define DIR_F   0u
+#define DIR_R   1u
+#define DIR_B   2u
+#define DIR_L   3u
 
 struct Cell {
     uint cellType;    // 0=empty,1=Leaf,2=Root,3=Antenna,4=Wood,5=Sprout,6=Seed

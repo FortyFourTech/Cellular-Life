@@ -268,6 +268,7 @@ void CreateCell(uint2 targetPos, uint type, uint direction, uint parentDir)
     newCell.activeGene = 0u;
     newCell.parentDir = parentDir;
     newCell.energy = 0.5;
+    newCell.direction = direction;
     SetIntBit(newCell.energyFlow, type != CELLTYPE_SPROUT && type != CELLTYPE_SEED, parentDir);
 
     // mutate only on Sprout or Seed cells
@@ -288,38 +289,46 @@ void CreateCell(uint2 targetPos, uint type, uint direction, uint parentDir)
     _Cells[targetIdx] = newCell;
 }
 
-void KillCell(uint2 cellPos)
-{
-    uint cellIdx = cellPos.y * _Width + cellPos.x;
-    // Cell cell = _Cells[cellIdx];
+void RemoveCell(uint2 cellPos) {
+    uint cellIdx = PosToIdx(cellPos);
 
-    // set parent dir to -1 on neighbors if it was their parent
+    // get rid of neighbors parent refs and energy flow
     for (int dir = 0; dir < 4; ++dir) {
         int toNeighbor = dir;
-        int fromNeighbor = RotateDir(toNeighbor, 2);
+        int fromNeighbor = RotateDir(toNeighbor, DIR_B);
         uint2 neighborPos = ShiftCoord(cellPos, toNeighbor);
         uint neighborIdx = neighborPos.y * _Width + neighborPos.x;
 
         if (_Cells[neighborIdx].cellType == 0) continue;
 
+        // remove parent ref on neighbor
         _Cells[neighborIdx].parentDir = _Cells[neighborIdx].parentDir == fromNeighbor ? 0xFFFFFFFF : _Cells[neighborIdx].parentDir;
+
+        // close energy flow to this cell on neighbor
         if (GetIntBit(_Cells[neighborIdx].energyFlow, fromNeighbor))
             SetIntBit(_Cells[neighborIdx].energyFlow, 0, fromNeighbor);
     }
+
+    // decrement genome refcount
+    InterlockedAdd(_Genomes[_Cells[cellIdx].genomeId].cellNum, (uint)-1 * (_Cells[cellIdx].cellType >= CELLTYPE_SPROUT));
+
+    // clear cell
+    _Cells[cellIdx] = (Cell)0;
+}
+
+void KillCell(uint2 cellPos)
+{
+    uint cellIdx = PosToIdx(cellPos);
+    // Cell cell = _Cells[cellIdx];
+
     // spit energy from the cell to soil
     // spit organics to soil
-
     float2 cur = _SoilTexRead[cellPos];
     cur.x += 0.1; // organics
     cur.y += _Cells[cellIdx].energy; // energy
     _SoilTexWrite[cellPos] = cur; // write to write-target; commit swap on CPU
 
-    // decrement genome refcount
-    uint oldGid = _Cells[cellIdx].genomeId;
-    InterlockedAdd(_Genomes[oldGid].cellNum, (uint)-1 * (_Cells[cellIdx].cellType >= CELLTYPE_SPROUT));
-
-    // clear cell
-    _Cells[cellIdx] = (Cell)0;
+    RemoveCell(cellPos);
 }
 
 void ConvertToSeed(uint2 cellPos) {
