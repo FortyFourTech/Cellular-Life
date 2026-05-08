@@ -13,6 +13,8 @@
 #define ABSORB_SOIL_ENERGY  0.05
 #define ABSORB_LIFE_ENERGY  0.05
 
+#define TRANSPORT_SPEED 2
+
 #define GENES_NUM 32
 
 #define DIR_F   0u

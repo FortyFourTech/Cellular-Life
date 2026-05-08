@@ -75,15 +75,14 @@ void LeafKernel(uint3 id : SV_DispatchThreadID)
 void RootKernel(uint3 id : SV_DispatchThreadID)
 {
     uint cellIdx = PosToIdx(id.xy);
-    Cell c = _Cells[cellIdx];
-    if (c.cellType != CELLTYPE_ROOT) return; // only roots
+    uint cellType = _Cells[cellIdx].cellType;
+    if (cellType != CELLTYPE_ROOT) return; // only roots
 
     int2 pos = id.xy;
     float2 soil = _SoilTexRead[pos];
     float localOrganics = soil.x;
-    float produced = localOrganics * _Timestep;
-    c.energy += produced;
-    _Cells[cellIdx] = c;
+    float produced = min(localOrganics, ABSORB_SOIL_ORGANICS * _Timestep);
+    _Cells[cellIdx].energy += produced;
     _SoilTexWrite[pos] = float2(soil.x - produced, soil.y); // deplete organics
 }
 
@@ -91,15 +90,14 @@ void RootKernel(uint3 id : SV_DispatchThreadID)
 void AntennaKernel(uint3 id : SV_DispatchThreadID)
 {
     uint cellIdx = PosToIdx(id.xy);
-    Cell c = _Cells[cellIdx];
-    if (c.cellType != CELLTYPE_ANTENNA) return; // only antennas
+    uint cellType = _Cells[cellIdx].cellType;
+    if (cellType != CELLTYPE_ANTENNA) return; // only antennas
 
     int2 pos = id.xy;
     float2 soil = _SoilTexRead[pos];
     float localEnergy = soil.y;
-    float produced = localEnergy * _Timestep;
-    c.energy += produced;
-    _Cells[cellIdx] = c;
+    float produced = min(localEnergy, ABSORB_SOIL_ENERGY * _Timestep);
+    _Cells[cellIdx].energy += produced;
     _SoilTexWrite[pos] = float2(soil.x, soil.y - produced); // deplete energy
 }
 
@@ -114,7 +112,7 @@ void RerouteKernel(uint3 id : SV_DispatchThreadID)
     SetIntBit(c.energyFlow, 1, c.parentDir);
     uint2 parentPos = ShiftCoord(id.xy, c.parentDir);
     uint parentIdx = PosToIdx(parentPos);
-    SetIntBit(_Cells[parentIdx].energyFlow, 0, RotateDir(c.parentDir, 2));
+    SetIntBit(_Cells[parentIdx].energyFlow, 0, RotateDir(c.parentDir, DIR_B));
 
     _Cells[cellIdx] = c;
 }
@@ -124,20 +122,18 @@ void TransportKernel(uint3 id : SV_DispatchThreadID)
 {
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
-    Cell c = _Cells[cellIdx];
-    if (c.cellType == 0 || c.cellType >=  CELLTYPE_SPROUT) return; // only wood transfers
+    uint cellType = _Cells[cellIdx].cellType;
+    if (cellType == 0 || cellType >=  CELLTYPE_SPROUT) return; // only wood and factories transfers energy
 
     for (uint dir = 0; dir < 4; ++dir) {
         uint2 neighborPos = ShiftCoord(cellPos, dir);
         uint neighborIdx = PosToIdx(neighborPos);
         if (_Cells[neighborIdx].cellType == 0) continue;
 
-        float transformDelta = GetIntBit(c.energyFlow, dir) * max(c.energy - _Cells[neighborIdx].energy, 0) * 0.02 * _Timestep;
-        c.energy -= transformDelta;
+        float transformDelta = GetIntBit(_Cells[cellIdx].energyFlow, dir) * max(_Cells[cellIdx].energy - _Cells[neighborIdx].energy, 0) * TRANSPORT_SPEED * _Timestep;
+        _Cells[cellIdx].energy -= transformDelta;
         _Cells[neighborIdx].energy += transformDelta;
     }
-
-    _Cells[cellIdx] = c;
 }
 
 [numthreads(32,32,1)]
@@ -148,7 +144,7 @@ void AbsorptionKernel(uint3 id : SV_DispatchThreadID)
     if (c.cellType == 0) return;
 
     // MVP: simple metabolic cost per tick
-    float cost = 0.005 * _Timestep;
+    float cost = ABSORB_LIFE_ENERGY * _Timestep;
     c.energy -= cost;
     _Cells[cellIdx] = c;
 }
