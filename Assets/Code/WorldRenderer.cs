@@ -50,6 +50,9 @@ public class WorldRenderer : MonoBehaviour
             blitMat.SetFloat("_Blend", renderMode == RenderMode.SoilEnergy ? 1f : 0f);
             blitMat.SetInteger("_Width", world.width);
             blitMat.SetInteger("_Height", world.height);
+            blitMat.SetFloat("_OrgThreshold", world.organicsThreshold);
+            blitMat.SetFloat("_NrgThreshold", world.energyThreshold);
+            blitMat.SetFloat("_Threshold", renderMode == RenderMode.SoilEnergy ? world.energyThreshold : world.organicsThreshold);
 
             Graphics.Blit(null, worldRT, blitMat);
         }

@@ -11,6 +11,8 @@ public class WorldSimulation : MonoBehaviour
     public int width = 128;
     public int height = 128;
     public int genomeCapacity = 1024;
+    public float organicsThreshold = 1f;
+    public float energyThreshold = 1f;
 
     // public bool isPaused = true;
 
@@ -156,16 +158,16 @@ public class WorldSimulation : MonoBehaviour
             _Width = width,
             _Height = height,
             _Timestep = 0.1f,
-            _GenomeCapacity = genomeCapacity
+            _GenomeCapacity = genomeCapacity,
+            _Sunlight = 1.0f,
+            _DiffusionRate = 0.2f,
         };
         simParamsBuffer = new ConstantBuffer<SimParams>();
         UpdateTimestamp();
         simParamsBuffer.SetGlobal(Shader.PropertyToID("_SimParams"));
 
-        simulationShader.SetFloat("_Sunlight", 1.0f);
-        simulationShader.SetFloat("_DiffusionRate", 0.2f);
-        simulationShader.SetFloat("_CriticalOrg", 1.0f);
-        simulationShader.SetFloat("_CriticalNrg", 1.0f);
+        simulationShader.SetFloat("_CriticalOrg", organicsThreshold);
+        simulationShader.SetFloat("_CriticalNrg", energyThreshold);
 
         // allocate command buffer (4 uints per entry)
         int cmdElemSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(CommandEntry));
@@ -327,9 +329,11 @@ public class WorldSimulation : MonoBehaviour
 
         // Roots
         cb.DispatchCompute(simulationShader, kernelRootIdx, cx, cy, 1);
+        ApplySoilChange(cb);
 
         // Antennas
         cb.DispatchCompute(simulationShader, kernelAntennaIdx, cx, cy, 1);
+        ApplySoilChange(cb);
 
         // Transport
         cb.DispatchCompute(simulationShader, kernelRerouteIdx, cx, cy, 1);
@@ -340,9 +344,11 @@ public class WorldSimulation : MonoBehaviour
 
         // Death
         cb.DispatchCompute(simulationShader, kernelDeathIdx, cx, cy, 1);
+        ApplySoilChange(cb);
 
         // Seeds
         cb.DispatchCompute(simulationShader, kernelSeedIdx, cx, cy, 1);
+        ApplySoilChange(cb);
 
         // Behavior
         // if (kernelBehaviorIdx >= 0) {

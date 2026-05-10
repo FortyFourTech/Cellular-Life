@@ -87,8 +87,8 @@ public struct SimParams
     public float _Timestamp;
     public float _Rand;
     public int _GenomeCapacity;
-    uint _Pad3;
-    uint _Pad4;
+    public float _Sunlight;
+    public float _DiffusionRate;
 }
 
 struct CommandEntry {

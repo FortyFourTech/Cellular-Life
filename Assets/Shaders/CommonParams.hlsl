@@ -10,7 +10,8 @@ cbuffer _SimParams
     float _Timestamp;
     float _Rand;
     int _GenomeCapacity;
-    uint2 pad34;
+    float _Sunlight;
+    float _DiffusionRate;
 }
 
 RWTexture2D<float2> _SoilTexRead;// x=organics, y=soilEnergy

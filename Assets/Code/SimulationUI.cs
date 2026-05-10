@@ -114,6 +114,8 @@ public class SimulationUI : MonoBehaviour
                     lastUpdateTime = Time.time;
                 }
             }
+
+            ApplySimParameters();
         }
 
         // brush input: apply while holding the brush mouse button
@@ -150,16 +152,15 @@ public class SimulationUI : MonoBehaviour
         GUILayout.Label($"Speed: {simulationSpeed:F2}");
         simulationSpeed = GUILayout.HorizontalSlider(simulationSpeed, 0.01f, 1f);
 
-        // GUILayout.Space(6);
-        // GUILayout.Label("World Parameters", GUI.skin.label);
-        // GUILayout.Label($"Sunlight: {sunlight:F2}");
-        // sunlight = GUILayout.HorizontalSlider(sunlight, 0f, 8f);
-        // GUILayout.Label($"Diffusion Rate: {diffusionRate:F2}");
-        // diffusionRate = GUILayout.HorizontalSlider(diffusionRate, 0f, 1f);
+        GUILayout.Space(6);
+        GUILayout.Label("World Parameters", GUI.skin.label);
+        GUILayout.Label($"Sunlight: {sunlight:F2}");
+        sunlight = GUILayout.HorizontalSlider(sunlight, 0f, 10f);
+        GUILayout.Label($"Diffusion Rate: {diffusionRate:F2}");
+        diffusionRate = GUILayout.HorizontalSlider(diffusionRate, 0f, 10f);
         // GUILayout.Label($"Cell energy cost/tick: {cellEnergyCost:F4}");
         // cellEnergyCost = GUILayout.HorizontalSlider(cellEnergyCost, 0f, 0.1f);
-
-        // if (GUILayout.Button("Apply World Params")) ApplyWorldParameters();
+        // if (GUILayout.Button("Apply World Params")) ApplySimParameters();
 
         GUILayout.Space(6);
         GUILayout.Label("Brush / Tools", GUI.skin.label);
@@ -470,16 +471,12 @@ public class SimulationUI : MonoBehaviour
         world?.Step();
     }
 
-    void ApplyWorldParameters()
+    void ApplySimParameters()
     {
         if (world == null) return;
-        // Apply to compute shader if available
-        if (world.simulationShader != null)
-        {
-            try { world.simulationShader.SetFloat("_Sunlight", sunlight); } catch {}
-            try { world.simulationShader.SetFloat("_DiffusionRate", diffusionRate); } catch {}
-            try { world.simulationShader.SetFloat("_Timestep", 1.0f); } catch {}
-        }
+
+        world.SimParams._Sunlight = sunlight;
+        world.SimParams._DiffusionRate = diffusionRate;
     }
 
     void CreateSeedFromGenome()
