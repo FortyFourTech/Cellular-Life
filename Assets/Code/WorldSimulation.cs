@@ -420,8 +420,8 @@ public class WorldSimulation : MonoBehaviour
 
     private void ApplySoilChange(CommandBuffer cb = null)
     {
-        int cx = Mathf.CeilToInt(width / 32f);
-        int cy = Mathf.CeilToInt(height / 32f);
+        int cx = Mathf.CeilToInt(width / 8f);
+        int cy = Mathf.CeilToInt(height / 8f);
 
         if (cb != null) {
             cb.DispatchCompute(simulationShader, kernelApplySoilIdx, cx, cy, 1);
