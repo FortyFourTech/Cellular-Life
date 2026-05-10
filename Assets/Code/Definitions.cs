@@ -26,19 +26,16 @@ public struct Gene {
     public uint aloneComGenes; // gene indicies: 0 - for first command success, 1 - for first command fail, 2 - for second command success, 3 - for second command fail
     // public uint pad0;
 
-    public CellType GetGrowCellType(int dir) => (CellType)(((growDirections >> (dir * 8)) & 0xFF) % 32);
+    public readonly CellType GetGrowCellType(int dir) {
+        var typeParam = (growDirections >> (dir * 8)) & 0xFF;
+        return typeParam < 64 ? CellType.Sprout :
+            typeParam < 75 ? CellType.Leaf :
+            typeParam < 85 ? CellType.Antenna :
+            typeParam < 95 ? CellType.Root :
+            0;
+    }
     // public string GetGrowCellTypeString(int dir) => Enum.IsDefined(typeof(CellType), GetGrowCellType(dir)) ? GetGrowCellType(dir).ToString() : "-";
-    public string GetGrowCellTypeString(int dir) => (((growDirections >> (dir * 8)) & 0xFF) % 32) switch
-    {
-        0 => "[0]",
-        1 => "🟢",
-        2 => "🔴",
-        3 => "🔵",
-        4 => "🟤",
-        5 => "⚪️",
-        6 => "🟡",
-        _ => "[-]",
-    };
+    public readonly string GetGrowCellTypeString(int dir) => GetGrowCellType(dir).Symbol();
     // Enum.IsDefined(typeof(CellType), GetGrowCellType(dir)) ? GetGrowCellType(dir).ToString() : "-";
 };
 

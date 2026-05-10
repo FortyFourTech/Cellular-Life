@@ -1,26 +1,26 @@
 #pragma kernel DecisionKernel
 // #pragma kernel Cmd_SetActiveOnly
 
-#pragma kernel Cmd_0_Skip
-#pragma kernel Cmd_1_Grow
-#pragma kernel Cmd_2_Move
-#pragma kernel Cmd_3_RotR
-#pragma kernel Cmd_4_RotL
-#pragma kernel Cmd_5_BecomeSeed
-#pragma kernel Cmd_6_Eat
-#pragma kernel Cmd_7_Attach
-#pragma kernel Cmd_8_ExtractOrg
-#pragma kernel Cmd_9_ExtractNrg
-#pragma kernel Cmd_10_Separate
-#pragma kernel Cmd_11_MoveOrgR
-#pragma kernel Cmd_12_MoveOrgF
-#pragma kernel Cmd_13_MoveOrgL
-#pragma kernel Cmd_14_MoveNrgR
-#pragma kernel Cmd_15_MoveNrgF
-#pragma kernel Cmd_16_MoveNrgL
-#pragma kernel Cmd_17_Die
-#pragma kernel Cmd_18_SendSeed
-#pragma kernel Cmd_19_SpitEnergy
+#pragma kernel Cmd_1
+#pragma kernel Cmd_2
+#pragma kernel Cmd_3
+#pragma kernel Cmd_4
+#pragma kernel Cmd_5
+#pragma kernel Cmd_6
+#pragma kernel Cmd_7
+#pragma kernel Cmd_8
+#pragma kernel Cmd_9
+#pragma kernel Cmd_10
+#pragma kernel Cmd_11
+#pragma kernel Cmd_12
+#pragma kernel Cmd_13
+#pragma kernel Cmd_14
+#pragma kernel Cmd_15
+#pragma kernel Cmd_16
+#pragma kernel Cmd_17
+#pragma kernel Cmd_18
+#pragma kernel Cmd_19
+#pragma kernel Cmd_20
 
 #include "Defines.hlsl"
 #include "CommonParams.hlsl"
@@ -179,18 +179,69 @@ bool CheckGeneCondition(uint2 cellPos, uint condId, float condParam) {
 }
 
 // #region Gene commands
+uint ChooseGrowType(uint geneParam) {
+    return geneParam < 64 ? CELLTYPE_SPROUT :
+        geneParam < 75 ? CELLTYPE_LEAF :
+        geneParam < 85 ? CELLTYPE_ANTENNA :
+        geneParam < 95 ? CELLTYPE_ROOT :
+        0;
+}
+bool CommandGrow(uint2 cellPos) {
+    uint cellIdx = PosToIdx(cellPos);
+    Cell cell = _Cells[cellIdx];
+
+    uint growDirections = _Genomes[cell.genomeId].genes[cell.activeGene].growDirections;
+
+    // unpack directions
+    uint directionTypes[4];
+    directionTypes[0] = ChooseGrowType(UnpackInt1(growDirections));
+    directionTypes[1] = ChooseGrowType(UnpackInt2(growDirections));
+    directionTypes[2] = ChooseGrowType(UnpackInt3(growDirections));
+    directionTypes[3] = ChooseGrowType(UnpackInt4(growDirections));
+
+    uint cellDir = cell.direction;
+    bool growed = false;
+
+    for (int i = 0; i < 4; i++) {
+        uint typeToCreate = directionTypes[i];
+        uint createDir = RotateDir(i, cellDir);
+        uint2 targetCoord = ShiftCoord(cellPos, createDir);
+        uint targetIdx = PosToIdx(targetCoord);
+        if (typeToCreate == 0 || typeToCreate == CELLTYPE_WOOD || typeToCreate > CELLTYPE_SEED
+            || cell.energy < ENERGY_GROW
+            || _Cells[targetIdx].cellType != 0
+        ) continue;
+
+        // has enough energy?
+        CreateCell(targetCoord, typeToCreate, createDir, RotateDir(createDir, DIR_B), cell.genomeId);
+        // _Cells[targetIdx].energy = cell.energy / 2.0;
+        // _Cells[cellIdx].energy = cell.energy / 2.0;
+        SetIntBit(_Cells[cellIdx].energyFlow, typeToCreate == CELLTYPE_SPROUT || typeToCreate == CELLTYPE_SEED, createDir);
+
+        growed = true;
+    }
+
+    if (!growed) return false;
+
+    // make a wood from itself
+    ConvertToWood(cellPos);
+
+    // define transport direction!
+
+    return true;
+}
 bool CommandMove(uint2 cellPos/* , uint moveDir */) {
     uint cellIdx = PosToIdx(cellPos);
-    // Cell cell = _Cells[cellIdx];
+    Cell cell = _Cells[cellIdx];
 
     // copy self in movement direction
-    uint moveDir = _Cells[cellIdx].direction;
+    uint moveDir = cell.direction;
     uint2 targetCoord = ShiftCoord(cellPos, moveDir);
-    uint targetIdx = targetCoord.y * _Width + targetCoord.x;
+    uint targetIdx = PosToIdx(targetCoord);
 
-    if (_Cells[cellIdx].cellType < CELLTYPE_SPROUT || _Cells[targetIdx].cellType > 0) return false;
+    if (cell.cellType < CELLTYPE_SPROUT || cell.cellType > 0) return false;
 
-    _Cells[targetIdx] = _Cells[cellIdx];
+    _Cells[targetIdx] = cell;
 
     // erase self in current position
     _Cells[cellIdx] = (Cell)0;
@@ -199,10 +250,12 @@ bool CommandMove(uint2 cellPos/* , uint moveDir */) {
 }
 bool CommandRotate(uint2 cellPos, uint relDir) {
     uint cellIdx = PosToIdx(cellPos);
-    // Cell cell = _Cells[cellIdx];
+    Cell cell = _Cells[cellIdx];
+    uint originalDirection = cell.direction;
 
-    _Cells[cellIdx].direction = RotateDir(_Cells[cellIdx].direction, relDir);
-    return _Cells[cellIdx].parentDir < 4 && _Cells[cellIdx].cellType > 4;
+    cell.direction = cell.cellType >= CELLTYPE_SPROUT && IsCellSingle(cellPos, cell) ? RotateDir(cell.direction, relDir) : cell.direction;
+    _Cells[cellIdx] = cell;
+    return cell.direction != originalDirection;
 }
 bool CommandEatCell(uint2 cellPos/* , uint relDir */) {
     uint cellIdx = PosToIdx(cellPos);
@@ -240,50 +293,6 @@ bool CommandExtractEnergy(uint2 cellPos) {
     _Cells[cellIdx].energy += produced;
     _SoilTexWrite[cellPos] = float2(soil.x, soil.y - produced); // deplete energy
     return produced > 0.0;
-}
-bool CommandGrow(uint2 cellPos) {
-    uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _Cells[cellIdx];
-
-    uint growDirections = _Genomes[cell.genomeId].genes[cell.activeGene].growDirections;
-
-    // unpack directions
-    uint directionTypes[4];
-    directionTypes[0] = UnpackInt1(growDirections) % 32u;
-    directionTypes[1] = UnpackInt2(growDirections) % 32u;
-    directionTypes[2] = UnpackInt3(growDirections) % 32u;
-    directionTypes[3] = UnpackInt4(growDirections) % 32u;
-
-    uint cellDir = cell.direction;
-    bool growed = false;
-
-    for (int i = 0; i < 4; i++) {
-        uint typeToCreate = directionTypes[i];
-        uint createDir = RotateDir(i, cellDir);
-        uint2 targetCoord = ShiftCoord(cellPos, createDir);
-        uint targetIdx = PosToIdx(targetCoord);
-        if (typeToCreate == 0 || typeToCreate == CELLTYPE_WOOD || typeToCreate > CELLTYPE_SEED
-            || cell.energy < ENERGY_GROW
-            || _Cells[targetIdx].cellType != 0
-        ) continue;
-
-        // has enough energy?
-        CreateCell(targetCoord, typeToCreate, createDir, RotateDir(createDir, DIR_B), cell.genomeId);
-        // _Cells[targetIdx].energy = cell.energy / 2.0;
-        // _Cells[cellIdx].energy = cell.energy / 2.0;
-        SetIntBit(_Cells[cellIdx].energyFlow, typeToCreate == CELLTYPE_SPROUT || typeToCreate == CELLTYPE_SEED, createDir);
-
-        growed = true;
-    }
-
-    if (!growed) return false;
-
-    // make a wood from itself
-    ConvertToWood(cellPos);
-
-    // define transport direction!
-
-    return true;
 }
 bool CommandSkip(uint2 cellPos) {
     return true;
@@ -454,26 +463,27 @@ bool CommandSpitEnergy(uint2 cellPos) {
 // }
 
 // Decision kernel: evaluates gene conditions and writes a command entry per cell
-[numthreads(32,32,1)]
+[numthreads(8,8,1)]
 void DecisionKernel(uint3 dtid : SV_DispatchThreadID)
 {
-    uint2 cellPos = uint2(dtid.x, dtid.y);
+    uint2 cellPos = dtid.xy;
     uint cellIdx = PosToIdx(cellPos);
+    Cell cell = _Cells[cellIdx];
 
-    if (dtid.x >= _Width || dtid.y >= _Height
-        || _Cells[cellIdx].cellType != CELLTYPE_SPROUT) return;
+    if (cellPos.x >= _Width || cellPos.y >= _Height
+        || cell.cellType != CELLTYPE_SPROUT) return;
 
-    Gene gene = _Genomes[_Cells[cellIdx].genomeId].genes[_Cells[cellIdx].activeGene];
+    Gene gene = _Genomes[cell.genomeId].genes[cell.activeGene];
 
-    bool isSingle = _Cells[cellIdx].parentDir == 0xFFFFFFFFu;
+    bool isSingle = IsCellSingle(cellPos, cell);
     uint cond1 = UnpackInt1(gene.conditions) % (COND_NUM * 2u);
     uint cond2 = UnpackInt2(gene.conditions) % (COND_NUM * 2u);
     bool cond1Valid = cond1 < COND_NUM;
     bool cond2Valid = cond2 < COND_NUM;
 
     CommandEntry outEntry = (CommandEntry)0;
-    outEntry.successGene = _Cells[cellIdx].activeGene;
-    outEntry.failGene = _Cells[cellIdx].activeGene;
+    outEntry.successGene = cell.activeGene;
+    outEntry.failGene = cell.activeGene;
 
     if (!cond1Valid && !cond2Valid) {
         outEntry.commandId = CMD_GROW;
@@ -487,8 +497,8 @@ void DecisionKernel(uint3 dtid : SV_DispatchThreadID)
 
     uint commNum = isSingle ? SINGLE_COMM_NUM : COMM_NUM;
 
-    static const uint commandLookupSingle[] = {0,1,2,3,4,5,6,7,8,9};
-    static const uint commandLookupCommon[] = {0,1,5,10,11,12,13,14,15,16,17,18,19};
+    static const uint commandLookupSingle[] = {1,2,3,4,5,6,7,8,9,10};
+    static const uint commandLookupCommon[] = {1,2,6,11,12,13,14,15,16,17,18,19,20};
 
     if (check) {
         uint tmp = UnpackInt1(isSingle ? gene.aloneCommands : gene.condResult) % (commNum * 2u);
@@ -516,72 +526,73 @@ void DecisionKernel(uint3 dtid : SV_DispatchThreadID)
 }
 
 // Per-command kernels: each executes its command only if command buffer matches
-#define DECL_CMD_KERNEL(NAME, ID) \
-void NAME(uint3 dtid : SV_DispatchThreadID) \
+#define DECL_CMD_KERNEL(ID) \
 [numthreads(8,8,1)] \
+void Cmd_##ID(uint3 dtid : SV_DispatchThreadID) \
 { \
     if (dtid.x >= _Width || dtid.y >= _Height) return; \
     uint2 cellPos = dtid.xy; \
     uint cellIdx = PosToIdx(cellPos); \
+    Cell cell = _Cells[cellIdx]; \
     CommandEntry ce = _CommandBuffer[cellIdx]; \
-    if (ce.commandId != (ID)) return; \
-    bool isSingle = _Cells[cellIdx].parentDir == 0xFFFFFFFFu; \
+    if (cell.cellType != CELLTYPE_SPROUT \
+        || ce.commandId != (ID)) \
+        return; \
+    bool isSingle = IsCellSingle(cellPos, cell); \
     bool res = false; \
     /* call the relevant command by ID */ \
     /* map IDs to functions */ \
-    if ((ID) == 0u) { res = CommandSkip(cellPos); } \
-    else if ((ID) == 1u) { res = CommandGrow(cellPos); } \
-    else if ((ID) == 2u) { res = CommandMove(cellPos); } \
-    else if ((ID) == 3u) { res = CommandRotate(cellPos, DIR_R); } \
-    else if ((ID) == 4u) { res = CommandRotate(cellPos, DIR_L); } \
-    else if ((ID) == 5u) { res = CommandBecomeSeed(cellPos); } \
-    else if ((ID) == 6u) { res = CommandEatCell(cellPos); } \
-    else if ((ID) == 7u) { res = CommandAttach(cellPos); } \
-    else if ((ID) == 8u) { res = CommandExtractOrganics(cellPos); } \
-    else if ((ID) == 9u) { res = CommandExtractEnergy(cellPos); } \
-    else if ((ID) == 10u) { res = CommandSeparate(cellPos); } \
-    else if ((ID) == 11u) { res = CommandMoveOrganics(cellPos, DIR_R); } \
-    else if ((ID) == 12u) { res = CommandMoveOrganics(cellPos, DIR_F); } \
-    else if ((ID) == 13u) { res = CommandMoveOrganics(cellPos, DIR_L); } \
-    else if ((ID) == 14u) { res = CommandMoveEnergy(cellPos, DIR_R); } \
-    else if ((ID) == 15u) { res = CommandMoveEnergy(cellPos, DIR_F); } \
-    else if ((ID) == 16u) { res = CommandMoveEnergy(cellPos, DIR_L); } \
-    else if ((ID) == 17u) { res = CommandDie(cellPos); } \
-    else if ((ID) == 18u) { res = CommandSendSeed(cellPos); } \
-    else if ((ID) == 19u) { res = CommandSpitEnergy(cellPos); } \
+    if ((ID) == 1u) { res = CommandSkip(cellPos); } \
+    else if ((ID) == 2u) { res = CommandGrow(cellPos); } \
+    else if ((ID) == 3u) { res = CommandMove(cellPos); } \
+    else if ((ID) == 4u) { res = CommandRotate(cellPos, DIR_R); } \
+    else if ((ID) == 5u) { res = CommandRotate(cellPos, DIR_L); } \
+    else if ((ID) == 6u) { res = CommandBecomeSeed(cellPos); } \
+    else if ((ID) == 7u) { res = CommandEatCell(cellPos); } \
+    else if ((ID) == 8u) { res = CommandAttach(cellPos); } \
+    else if ((ID) == 9u) { res = CommandExtractOrganics(cellPos); } \
+    else if ((ID) == 10u) { res = CommandExtractEnergy(cellPos); } \
+    else if ((ID) == 11u) { res = CommandSeparate(cellPos); } \
+    else if ((ID) == 12u) { res = CommandMoveOrganics(cellPos, DIR_R); } \
+    else if ((ID) == 13u) { res = CommandMoveOrganics(cellPos, DIR_F); } \
+    else if ((ID) == 14u) { res = CommandMoveOrganics(cellPos, DIR_L); } \
+    else if ((ID) == 15u) { res = CommandMoveEnergy(cellPos, DIR_R); } \
+    else if ((ID) == 16u) { res = CommandMoveEnergy(cellPos, DIR_F); } \
+    else if ((ID) == 17u) { res = CommandMoveEnergy(cellPos, DIR_L); } \
+    else if ((ID) == 18u) { res = CommandDie(cellPos); } \
+    else if ((ID) == 19u) { res = CommandSendSeed(cellPos, SPEED_SLOW); } \
+    else if ((ID) == 20u) { res = CommandSpitEnergy(cellPos); } \
  \
     /* update active gene based on result */ \
-    if (res) { \
-        _Cells[cellIdx].activeGene = ce.successGene % GENES_NUM; \
-    } else { \
-        _Cells[cellIdx].activeGene = ce.failGene % GENES_NUM; \
-    } \
+    _Cells[cellIdx].activeGene = (res ? ce.successGene : ce.failGene) % GENES_NUM; \
+ \
+    _CommandBuffer[cellIdx] = (CommandEntry)0; \
 }
 
 // Instantiate kernels for command IDs 0..19
-DECL_CMD_KERNEL(Cmd_0_Skip, 0u)
-DECL_CMD_KERNEL(Cmd_1_Grow, 1u)
-DECL_CMD_KERNEL(Cmd_2_Move, 2u)
-DECL_CMD_KERNEL(Cmd_3_RotR, 3u)
-DECL_CMD_KERNEL(Cmd_4_RotL, 4u)
-DECL_CMD_KERNEL(Cmd_5_BecomeSeed, 5u)
-DECL_CMD_KERNEL(Cmd_6_Eat, 6u)
-DECL_CMD_KERNEL(Cmd_7_Attach, 7u)
-DECL_CMD_KERNEL(Cmd_8_ExtractOrg, 8u)
-DECL_CMD_KERNEL(Cmd_9_ExtractNrg, 9u)
-DECL_CMD_KERNEL(Cmd_10_Separate, 10u)
-DECL_CMD_KERNEL(Cmd_11_MoveOrgR, 11u)
-DECL_CMD_KERNEL(Cmd_12_MoveOrgF, 12u)
-DECL_CMD_KERNEL(Cmd_13_MoveOrgL, 13u)
-DECL_CMD_KERNEL(Cmd_14_MoveNrgR, 14u)
-DECL_CMD_KERNEL(Cmd_15_MoveNrgF, 15u)
-DECL_CMD_KERNEL(Cmd_16_MoveNrgL, 16u)
-DECL_CMD_KERNEL(Cmd_17_Die, 17u)
-DECL_CMD_KERNEL(Cmd_18_SendSeed, 18u)
-DECL_CMD_KERNEL(Cmd_19_SpitEnergy, 19u)
+DECL_CMD_KERNEL(1)
+DECL_CMD_KERNEL(2)
+DECL_CMD_KERNEL(3)
+DECL_CMD_KERNEL(4)
+DECL_CMD_KERNEL(5)
+DECL_CMD_KERNEL(6)
+DECL_CMD_KERNEL(7)
+DECL_CMD_KERNEL(8)
+DECL_CMD_KERNEL(9)
+DECL_CMD_KERNEL(10)
+DECL_CMD_KERNEL(11)
+DECL_CMD_KERNEL(12)
+DECL_CMD_KERNEL(13)
+DECL_CMD_KERNEL(14)
+DECL_CMD_KERNEL(15)
+DECL_CMD_KERNEL(16)
+DECL_CMD_KERNEL(17)
+DECL_CMD_KERNEL(18)
+DECL_CMD_KERNEL(19)
+DECL_CMD_KERNEL(20)
 
 // Kernel to apply set-active-only entries
-// [numthreads(32,32,1)]
+// [numthreads(8,8,1)]
 // void Cmd_SetActiveOnly(uint3 dtid : SV_DispatchThreadID)
 // {
 //     if (dtid.x >= _Width || dtid.y >= _Height) return;

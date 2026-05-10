@@ -111,26 +111,9 @@ public class WorldSimulation : MonoBehaviour
         kernelStatsIdx = simulationShader.FindKernel("StatsKernel");
 
         try { kernelDecisionIdx = behaviorShader.FindKernel("DecisionKernel"); } catch { kernelDecisionIdx = -1; }
-        try { kernelCmdIdx[0] = behaviorShader.FindKernel("Cmd_0_Skip"); } catch { kernelCmdIdx[0] = -1; }
-        try { kernelCmdIdx[1] = behaviorShader.FindKernel("Cmd_1_Grow"); } catch { kernelCmdIdx[1] = -1; }
-        try { kernelCmdIdx[2] = behaviorShader.FindKernel("Cmd_2_Move"); } catch { kernelCmdIdx[2] = -1; }
-        try { kernelCmdIdx[3] = behaviorShader.FindKernel("Cmd_3_RotR"); } catch { kernelCmdIdx[3] = -1; }
-        try { kernelCmdIdx[4] = behaviorShader.FindKernel("Cmd_4_RotL"); } catch { kernelCmdIdx[4] = -1; }
-        try { kernelCmdIdx[5] = behaviorShader.FindKernel("Cmd_5_BecomeSeed"); } catch { kernelCmdIdx[5] = -1; }
-        try { kernelCmdIdx[6] = behaviorShader.FindKernel("Cmd_6_Eat"); } catch { kernelCmdIdx[6] = -1; }
-        try { kernelCmdIdx[7] = behaviorShader.FindKernel("Cmd_7_Attach"); } catch { kernelCmdIdx[7] = -1; }
-        try { kernelCmdIdx[8] = behaviorShader.FindKernel("Cmd_8_ExtractOrg"); } catch { kernelCmdIdx[8] = -1; }
-        try { kernelCmdIdx[9] = behaviorShader.FindKernel("Cmd_9_ExtractNrg"); } catch { kernelCmdIdx[9] = -1; }
-        try { kernelCmdIdx[10] = behaviorShader.FindKernel("Cmd_10_Separate"); } catch { kernelCmdIdx[10] = -1; }
-        try { kernelCmdIdx[11] = behaviorShader.FindKernel("Cmd_11_MoveOrgR"); } catch { kernelCmdIdx[11] = -1; }
-        try { kernelCmdIdx[12] = behaviorShader.FindKernel("Cmd_12_MoveOrgF"); } catch { kernelCmdIdx[12] = -1; }
-        try { kernelCmdIdx[13] = behaviorShader.FindKernel("Cmd_13_MoveOrgL"); } catch { kernelCmdIdx[13] = -1; }
-        try { kernelCmdIdx[14] = behaviorShader.FindKernel("Cmd_14_MoveNrgR"); } catch { kernelCmdIdx[14] = -1; }
-        try { kernelCmdIdx[15] = behaviorShader.FindKernel("Cmd_15_MoveNrgF"); } catch { kernelCmdIdx[15] = -1; }
-        try { kernelCmdIdx[16] = behaviorShader.FindKernel("Cmd_16_MoveNrgL"); } catch { kernelCmdIdx[16] = -1; }
-        try { kernelCmdIdx[17] = behaviorShader.FindKernel("Cmd_17_Die"); } catch { kernelCmdIdx[17] = -1; }
-        try { kernelCmdIdx[18] = behaviorShader.FindKernel("Cmd_18_SendSeed"); } catch { kernelCmdIdx[18] = -1; }
-        try { kernelCmdIdx[19] = behaviorShader.FindKernel("Cmd_19_SpitEnergy"); } catch { kernelCmdIdx[19] = -1; }
+        for (int i = 0; i < kernelCmdIdx.Length; i++) {
+            try { kernelCmdIdx[i] = behaviorShader.FindKernel($"Cmd_{i+1}"); } catch { kernelCmdIdx[i] = -1; }
+        }
 
         // rendertextures
         soilRT0 = new RenderTexture(width, height, 0, RenderTextureFormat.RGFloat);

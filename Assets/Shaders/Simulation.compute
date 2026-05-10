@@ -216,33 +216,25 @@ void SeedKernel(uint3 id : SV_DispatchThreadID)
         uint seedSpeed = UnpackInt3(cell.seedProps);
 
         [branch]
-        if (isSingle) {
+        if (isSingle && seedSpeed > 0) {
+            // Move seed
+            uint moveDir = cell.direction;
+            uint2 targetCoord = ShiftCoord(cellPos, moveDir);
+            uint targetIdx = PosToIdx(targetCoord);
+
             [branch]
-            if (seedSpeed > 0) {
-                // Move seed
-                uint moveDir = cell.direction;
-                uint2 targetCoord = ShiftCoord(cellPos, moveDir);
-                uint targetIdx = PosToIdx(targetCoord);
-
-                [branch]
-                if (_Cells[targetIdx].cellType > 0) {
-                    // kill target cell and self
-                    KillCell(targetCoord);
-                    KillCell(cellPos);
-                } else {
-                    // copy self in movement direction
-                    cell.seedProps = 47;
-                    _Cells[targetIdx] = cell;
-
-                    // erase self in current position
-                    _Cells[cellIdx] = (Cell)0;
-                }
+            if (_Cells[targetIdx].cellType > 0) {
+                // kill target cell and self
+                KillCell(targetCoord);
+                KillCell(cellPos);
             } else {
-                cell.seedProps = 50;
-                _Cells[cellIdx] = cell;
+                // copy self in movement direction
+                _Cells[targetIdx] = cell;
+
+                // erase self in current position
+                _Cells[cellIdx] = (Cell)0;
             }
         } else {
-            cell.seedProps = 52;
             _Cells[cellIdx] = cell;
         }
     }
