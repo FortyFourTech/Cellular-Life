@@ -70,9 +70,27 @@ public class SimulationUI : MonoBehaviour
         // keyboard shortcuts
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            if (isPaused) StepOnce();
-            else isPaused = !isPaused;
+            if (isPaused) {
+                if (Input.GetKey(KeyCode.LeftControl))
+                    isPaused = !isPaused;
+                else
+                    StepOnce();
+            }
+            else
+                isPaused = !isPaused;
         }
+
+        if (Input.GetKeyDown(KeyCode.Alpha1)) {
+            activeRenderMode = WorldRenderer.RenderMode.CellsFull;
+        } else if (Input.GetKeyDown(KeyCode.Alpha2)) {
+            activeRenderMode = WorldRenderer.RenderMode.CellsEnergy;
+        } else if (Input.GetKeyDown(KeyCode.Alpha3)) {
+            activeRenderMode = WorldRenderer.RenderMode.SoilOrganics;
+        } else if (Input.GetKeyDown(KeyCode.Alpha4)) {
+            activeRenderMode = WorldRenderer.RenderMode.SoilEnergy;
+        }
+
+        if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.R)) { Generate(); Populate(); }
 
         // Ctrl + mouse wheel changes simulation speed (approx)
         if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))
