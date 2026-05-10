@@ -22,10 +22,6 @@
 #pragma kernel Cmd_18_SendSeed
 #pragma kernel Cmd_19_SpitEnergy
 
-#define CMD_SKIP 0u
-#define CMD_GROW 1u
-#define CMD_MOVE 2u
-
 #include "Defines.hlsl"
 #include "CommonParams.hlsl"
 
@@ -342,10 +338,18 @@ bool CommandMoveEnergy(uint2 cellPos, uint relDir) {
     return localEnergy > 0;
 }
 bool CommandBecomeSeed(uint2 cellPos) {
-    ConvertToSeed(cellPos);
+    ConvertToSeed(cellPos, SPEED_NO, 32);
     return true;
 }
-bool CommandSendSeed(uint2 cellPos) {
+bool CommandSendSeed(uint2 cellPos, uint speed) {
+    uint cellIdx = PosToIdx(cellPos);
+    uint cellDir = _Cells[cellIdx].direction;
+    uint2 targetPos = ShiftCoord(cellPos, cellDir);
+    uint targetIdx = PosToIdx(targetPos);
+
+    CreateCell(targetPos, CELLTYPE_SEED, cellDir, 0xFFFFFFFFu, _Cells[cellIdx].genomeId);
+    _Cells[targetIdx].seedProps = (speed << 16) | 32;
+
     return true; // TODO: implement
 }
 bool CommandSpitEnergy(uint2 cellPos) {
@@ -513,8 +517,8 @@ void DecisionKernel(uint3 dtid : SV_DispatchThreadID)
 
 // Per-command kernels: each executes its command only if command buffer matches
 #define DECL_CMD_KERNEL(NAME, ID) \
-[numthreads(32,32,1)] \
 void NAME(uint3 dtid : SV_DispatchThreadID) \
+[numthreads(8,8,1)] \
 { \
     if (dtid.x >= _Width || dtid.y >= _Height) return; \
     uint2 cellPos = dtid.xy; \

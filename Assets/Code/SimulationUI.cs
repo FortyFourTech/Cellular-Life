@@ -230,13 +230,18 @@ public class SimulationUI : MonoBehaviour
         }
 
         // display all fields of CellData
-        GUILayout.Label($"cellType: {inspectedCell.cellType.Symbol()}");
+        GUILayout.Label($"cellType: {inspectedCell.cellType.Symbol()}({inspectedCell.cellType})");
         GUILayout.Label($"energy: {inspectedCell.energy:F4}");
         GUILayout.Label($"energyFlow: {inspectedCell.energyFlow}");
         GUILayout.Label($"parentDir: {inspectedCell.parentDir}");
         GUILayout.Label($"genomeId: {inspectedCell.genomeId}");
         GUILayout.Label($"direction: {inspectedCell.direction}");
         GUILayout.Label($"activeGene: {inspectedCell.activeGene}");
+        if (inspectedCell.cellType == CellType.Seed)
+        {
+            GUILayout.Label($"seed timer: {GetByte(inspectedCell.seedProps, 0)}");
+            GUILayout.Label($"seed speed: {GetByte(inspectedCell.seedProps, 2)}");
+        }
 
         GUILayout.Space(60);
         GUILayout.Label($"Genome#{inspectedCell.genomeId} [{inspectedCell.activeGene}]");

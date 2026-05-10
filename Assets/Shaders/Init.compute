@@ -3,6 +3,7 @@
 #pragma kernel InitEnergyKernel
 #pragma kernel InitCells
 #pragma kernel CleanCells
+#pragma kernel CleanGenomes
 
 #include "Defines.hlsl"
 #include "CommonParams.hlsl"
@@ -16,7 +17,7 @@ cbuffer InitParams
 
 #include "Common.hlsl"
 
-[numthreads(32,32,1)]
+[numthreads(8,8,1)]
 void InitOrganicsKernel(uint3 id : SV_DispatchThreadID)
 {
     if (id.x > _Width || id.y > _Height) return;
@@ -27,7 +28,7 @@ void InitOrganicsKernel(uint3 id : SV_DispatchThreadID)
     _SoilTexWrite[pos] = cur;
 }
 
-[numthreads(32,32,1)]
+[numthreads(8,8,1)]
 void InitEnergyKernel(uint3 id : SV_DispatchThreadID)
 {
     if (id.x > _Width || id.y > _Height) return;
@@ -38,7 +39,7 @@ void InitEnergyKernel(uint3 id : SV_DispatchThreadID)
     _SoilTexWrite[pos] = cur;
 }
 
-[numthreads(1,1,1)]
+[numthreads(8,8,1)]
 void InitCells(uint3 id : SV_DispatchThreadID)
 {
     uint2 cellPos = id.xy * 32;
@@ -51,14 +52,18 @@ void InitCells(uint3 id : SV_DispatchThreadID)
     _Cells[cellIdx].energy = 10.0;
 }
 
-[numthreads(32,32,1)]
+[numthreads(8,8,1)]
 void CleanCells(uint3 id : SV_DispatchThreadID)
 {
-    uint cellIdx = id.y * _Width + id.x;
-
-    if (_Cells[cellIdx].cellType > 0) {
-        InterlockedAdd(_Genomes[_Cells[cellIdx].genomeId].cellNum, (uint)-1);
-    }
-
+    uint2 cellPos = id.xy;
+    uint cellIdx = PosToIdx(cellPos);
     _Cells[cellIdx] = (Cell)0;
+}
+
+[numthreads(64,1,1)]
+void CleanGenomes(uint3 id : SV_DispatchThreadID)
+{
+    uint genIdx = id.x;
+    if (genIdx >= _GenomeCapacity) return;
+    _Genomes[genIdx] = (Genome)0;
 }

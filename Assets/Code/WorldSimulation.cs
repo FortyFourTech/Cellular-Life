@@ -16,7 +16,6 @@ public class WorldSimulation : MonoBehaviour
 
     RenderTexture soilRT0;
     RenderTexture soilRT1;
-    bool ping = false;
     bool isStarted = false;
 
     ConstantBuffer<SimParams> simParamsBuffer;
@@ -26,6 +25,7 @@ public class WorldSimulation : MonoBehaviour
     ComputeBuffer commandBuffer;
     ComputeBuffer statsBuffer;
 
+    int kernelApplySoilIdx;
     int kernelEnergyIdx;
     int kernelLeafIdx;
     int kernelRootIdx;
@@ -34,6 +34,7 @@ public class WorldSimulation : MonoBehaviour
     int kernelTransportIdx;
     int kernelAbsorbIdx;
     int kernelDeathIdx;
+    int kernelSeedIdx;
     // int kernelBehaviorIdx;
     int kernelDecisionIdx;
     int[] kernelCmdIdx = new int[20];
@@ -69,8 +70,7 @@ public class WorldSimulation : MonoBehaviour
     System.Collections.Generic.List<KillCoord> killPending = new System.Collections.Generic.List<KillCoord>();
     System.Collections.Generic.List<SetCell> setPending = new System.Collections.Generic.List<SetCell>();
 
-    public RenderTexture SoilRTSource => ping ? soilRT1 : soilRT0;
-    public RenderTexture SoilRTTarget => ping ? soilRT0 : soilRT1;
+    public RenderTexture SoilTexture => soilRT0;
 
     public ComputeBuffer CellsBuffer => cellsBuffer;
     public ComputeBuffer GenomesBuffer => genomesBuffer;
@@ -97,6 +97,7 @@ public class WorldSimulation : MonoBehaviour
         if (simulationShader == null) { Debug.LogError("Assign Simulation.compute to simulationShader"); return; }
 
         // kernels
+        kernelApplySoilIdx = simulationShader.FindKernel("ApplySoilChange");
         kernelEnergyIdx = simulationShader.FindKernel("DiffuseEnergyKernel");
         kernelLeafIdx = simulationShader.FindKernel("LeafKernel");
         kernelRootIdx = simulationShader.FindKernel("RootKernel");
@@ -105,6 +106,7 @@ public class WorldSimulation : MonoBehaviour
         kernelTransportIdx = simulationShader.FindKernel("TransportKernel");
         kernelAbsorbIdx = simulationShader.FindKernel("AbsorptionKernel");
         kernelDeathIdx = simulationShader.FindKernel("DeathKernel");
+        kernelSeedIdx = simulationShader.FindKernel("SeedKernel");
         // kernelBehaviorIdx = simulationShader.FindKernel("BehaviorKernel");
         kernelStatsIdx = simulationShader.FindKernel("StatsKernel");
 
@@ -137,6 +139,14 @@ public class WorldSimulation : MonoBehaviour
         soilRT1 = new RenderTexture(width, height, 0, RenderTextureFormat.RGFloat);
         soilRT1.enableRandomWrite = true;
         soilRT1.Create();
+        // initialize soil as zeros (MVP)
+        Graphics.SetRenderTarget(soilRT0);
+        GL.Clear(false, true, Color.black);
+        Graphics.SetRenderTarget(soilRT1);
+        GL.Clear(false, true, Color.black);
+
+        Shader.SetGlobalTexture("_SoilTexRead", soilRT0);
+        Shader.SetGlobalTexture("_SoilTexWrite", soilRT1);
 
         // buffers
         cellsBuffer = new ComputeBuffer(width*height, System.Runtime.InteropServices.Marshal.SizeOf(typeof(CellData)));
@@ -218,23 +228,50 @@ public class WorldSimulation : MonoBehaviour
             kernelCopyGenomeIdx = mutationShader.FindKernel("CopyGenomeKernel");
             mutationShader.SetBuffer(kernelCopyGenomeIdx, "_SingleGenomeOut", singleGenomeBuffer);
         } catch { kernelCopyGenomeIdx = -1; }
+    }
 
-        // initialize soil as zeros (MVP)
-        Graphics.SetRenderTarget(soilRT0);
-        GL.Clear(false, true, Color.black);
-        Graphics.SetRenderTarget(soilRT1);
-        GL.Clear(false, true, Color.black);
+    public void InitWorld()
+    {
+        int cx = Mathf.CeilToInt(width / 8f);
+        int cy = Mathf.CeilToInt(height / 8f);
+
+        var cb = new CommandBuffer();
+        cb.name = "InitPipeline";
+
+        // init starting organics
+        UpdateTimestamp();
+        cb.SetComputeFloatParam(initShader, "_StartOrganic", 0.5f);
+        int orgKernelIdx = initShader.FindKernel("InitOrganicsKernel");
+        cb.DispatchCompute(initShader, orgKernelIdx, cx, cy, 1);
+        ApplySoilChange(cb);
+
+        // init starting energy
+        int nrgKernelIdx = initShader.FindKernel("InitEnergyKernel");
+        cb.SetComputeFloatParam(initShader, "_MeanEnergy", 0.5f);
+        cb.DispatchCompute(initShader, nrgKernelIdx, cx, cy, 1);
+        ApplySoilChange(cb);
+
+        // clean the field from cells
+        int cellsKernelIdx = initShader.FindKernel("CleanCells");
+        cb.DispatchCompute(initShader, cellsKernelIdx, cx, cy, 1);
+
+        // clean the field from cells
+        int genomesKernelIdx = initShader.FindKernel("CleanGenomes");
+        cb.DispatchCompute(initShader, genomesKernelIdx, genomeCapacity / 64, 1, 1);
+
+        Graphics.ExecuteCommandBuffer(cb);
+        cb.Release();
     }
 
     public void PopulateWorld()
     {
-        int cx = Mathf.CeilToInt(width / 32f);
-        int cy = Mathf.CeilToInt(height / 32f);
+        int cx = Mathf.CeilToInt(width / (32 * 8));
+        int cy = Mathf.CeilToInt(height / (32 * 8));
         UpdateTimestamp();
 
         // init starting cells
         int cellsKernelIdx = initShader.FindKernel("InitCells");
-        initShader.SetInt("_CellRowCount", cx);
+        initShader.SetInt("_CellRowCount", cx * 8);
         initShader.Dispatch(cellsKernelIdx, cx, cy, 1);
 
         isStarted = true;
@@ -255,35 +292,6 @@ public class WorldSimulation : MonoBehaviour
             // submit updated date
             stats = data.ToArray();
         });
-    }
-
-    public void InitWorld()
-    {
-        int cx = Mathf.CeilToInt(width / 32f);
-        int cy = Mathf.CeilToInt(height / 32f);
-
-        // init starting organics
-        int orgKernelIdx = initShader.FindKernel("InitOrganicsKernel");
-        UpdateTimestamp();
-        initShader.SetTexture(orgKernelIdx, "_SoilTexRead", SoilRTSource);
-        initShader.SetTexture(orgKernelIdx, "_SoilTexWrite", SoilRTTarget);
-        initShader.SetFloat("_StartOrganic", 0.5f);
-        initShader.Dispatch(orgKernelIdx, cx, cy, 1);
-        FlipSoilTex();
-
-        // init starting energy
-        int nrgKernelIdx = initShader.FindKernel("InitEnergyKernel");
-        UpdateTimestamp();
-        initShader.SetTexture(nrgKernelIdx, "_SoilTexRead", SoilRTSource);
-        initShader.SetTexture(nrgKernelIdx, "_SoilTexWrite", SoilRTTarget);
-        initShader.SetFloat("_MeanEnergy", 0.5f);
-        initShader.Dispatch(nrgKernelIdx, cx, cy, 1);
-        FlipSoilTex();
-
-        // clean the field from cells
-        int cellsKernelIdx = initShader.FindKernel("CleanCells");
-        UpdateTimestamp();
-        initShader.Dispatch(cellsKernelIdx, cx, cy, 1);
     }
 
     public void Step()
@@ -320,20 +328,16 @@ public class WorldSimulation : MonoBehaviour
         var cb = new CommandBuffer();
         cb.name = "SimulationPipeline";
 
-        // simParamsBuffer.SetGlobal(cb, Shader.PropertyToID("_SimParams"));
         UpdateTimestamp();
-        cb.SetGlobalTexture("_SoilTexRead", SoilRTSource);
-        cb.SetGlobalTexture("_SoilTexWrite", SoilRTTarget);
 
-        int tx = Mathf.CeilToInt(width / 8f);
-        int ty = Mathf.CeilToInt(height / 8f);
+        int cx = Mathf.CeilToInt(width / 8f);
+        int cy = Mathf.CeilToInt(height / 8f);
 
         // soil kernels
-        cb.DispatchCompute(simulationShader, kernelEnergyIdx, tx, ty, 1);
+        cb.DispatchCompute(simulationShader, kernelEnergyIdx, cx, cy, 1);
+        ApplySoilChange(cb);
 
         // cell kernels
-        int cx = Mathf.CeilToInt(width / 32f);
-        int cy = Mathf.CeilToInt(height / 32f);
 
         // Leafs
         cb.DispatchCompute(simulationShader, kernelLeafIdx, cx, cy, 1);
@@ -354,14 +358,18 @@ public class WorldSimulation : MonoBehaviour
         // Death
         cb.DispatchCompute(simulationShader, kernelDeathIdx, cx, cy, 1);
 
+        // Seeds
+        cb.DispatchCompute(simulationShader, kernelSeedIdx, cx, cy, 1);
+
         // Behavior
         // if (kernelBehaviorIdx >= 0) {
-        //     cb.SetComputeTextureParam(simulationShader, kernelBehaviorIdx, "_SoilTexRead", SoilRTSource);
-        //     cb.SetComputeTextureParam(simulationShader, kernelBehaviorIdx, "_SoilTexWrite", SoilRTTarget);
+        //     cb.SetComputeTextureParam(simulationShader, kernelBehaviorIdx, "_SoilTexRead", soilRT0);
+        //     cb.SetComputeTextureParam(simulationShader, kernelBehaviorIdx, "_SoilTexWrite", soilRT1);
         //     cb.SetComputeFloatParam(simulationShader, "_Rand", UnityEngine.Random.value);
         // }
+
         // Decision kernel: choose command per cell
-        if (kernelDecisionIdx >= 0) cb.DispatchCompute(behaviorShader, kernelDecisionIdx, cx, cy, 1);
+        cb.DispatchCompute(behaviorShader, kernelDecisionIdx, cx, cy, 1);
 
         // Per-command kernels
         for (int i = 0; i < kernelCmdIdx.Length; ++i)
@@ -380,6 +388,8 @@ public class WorldSimulation : MonoBehaviour
         statsBuffer.SetData(stats);
         if (kernelStatsIdx >= 0) cb.DispatchCompute(simulationShader, kernelStatsIdx, 1, 1, 1);
 
+        ApplySoilChange(cb);
+
         // Execute the assembled command buffer once on GPU
         Graphics.ExecuteCommandBuffer(cb);
         cb.Release();
@@ -395,8 +405,6 @@ public class WorldSimulation : MonoBehaviour
             var data = request.GetData<uint>();
             stats = data.ToArray();
         });
-
-        FlipSoilTex();
     }
 
     void CreateTestCells()
@@ -425,13 +433,18 @@ public class WorldSimulation : MonoBehaviour
         commandBuffer?.Release();
         if (soilRT0 != null) soilRT0.Release();
         if (soilRT1 != null) soilRT1.Release();
-    }
+        }
 
-    private void FlipSoilTex()
+    private void ApplySoilChange(CommandBuffer cb = null)
     {
-        Graphics.Blit(SoilRTTarget, SoilRTSource);
-        ping = !ping;
-        // Graphics.CopyBuffer(cellsBuffer, killBuffer);
+        int cx = Mathf.CeilToInt(width / 32f);
+        int cy = Mathf.CeilToInt(height / 32f);
+
+        if (cb != null) {
+            cb.DispatchCompute(simulationShader, kernelApplySoilIdx, cx, cy, 1);
+        } else {
+            simulationShader.Dispatch(kernelApplySoilIdx, cx, cy, 1);
+        }
     }
 
     private void UpdateTimestamp() {
@@ -478,12 +491,10 @@ public class WorldSimulation : MonoBehaviour
         if (count == 0) return;
         organicsDeltaBuffer.SetData(organicsPending);
         mutationShader.SetInt("_OrganicsCount", count);
-        mutationShader.SetTexture(kernelMutOrganicsIdx, "_SoilTexRead", SoilRTSource);
-        mutationShader.SetTexture(kernelMutOrganicsIdx, "_SoilTexWrite", SoilRTTarget);
         int groups = Mathf.CeilToInt((float)count / 64f);
         mutationShader.Dispatch(kernelMutOrganicsIdx, groups, 1, 1);
         organicsPending.Clear();
-        FlipSoilTex();
+        ApplySoilChange();
     }
 
     public void RunEnergyNow()
@@ -493,12 +504,10 @@ public class WorldSimulation : MonoBehaviour
         if (count == 0) return;
         energyDeltaBuffer.SetData(energyPending);
         mutationShader.SetInt("_EnergyCount", count);
-        mutationShader.SetTexture(kernelMutEnergyIdx, "_SoilTexRead", SoilRTSource);
-        mutationShader.SetTexture(kernelMutEnergyIdx, "_SoilTexWrite", SoilRTTarget);
         int groups = Mathf.CeilToInt((float)count / 64f);
         mutationShader.Dispatch(kernelMutEnergyIdx, groups, 1, 1);
         energyPending.Clear();
-        FlipSoilTex();
+        ApplySoilChange();
     }
 
     public void RunKillNow()

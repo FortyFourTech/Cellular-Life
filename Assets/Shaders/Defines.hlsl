@@ -12,6 +12,7 @@
 #define ABSORB_SOIL_ORGANICS 0.05
 #define ABSORB_SOIL_ENERGY  0.05
 #define ABSORB_LIFE_ENERGY  0.05
+#define ABSORB_LIFE_ENERGY_SEED  0.005
 
 #define TRANSPORT_SPEED 2
 
@@ -22,15 +23,23 @@
 #define DIR_B   2u
 #define DIR_L   3u
 
+#define SPEED_NO 0u
+#define SPEED_SLOW 1u
+#define SPEED_FAST 2u
+
+#define CMD_SKIP 0u
+#define CMD_GROW 1u
+#define CMD_MOVE 2u
+
 struct Cell {
-    uint cellType;    // 0=empty,1=Leaf,2=Root,3=Antenna,4=Wood,5=Sprout,6=Seed
+    uint cellType; // [0,6] 3 bits
     float energy;
-    uint energyFlow; // absolute
-    uint parentDir;
+    uint energyFlow; // absolute // [0,15] 4 bits
+    uint parentDir; // [0,3] 2 bits
     uint genomeId;
-    uint direction;
-    uint activeGene;
-    uint pad0;
+    uint direction; // [0,3] 2 bits
+    uint activeGene; // [0,31] 5 bits
+    uint seedProps; // bytes 0,1 - speed; 2,3 - timer
 };
 
 struct Gene {

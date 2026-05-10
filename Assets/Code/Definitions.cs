@@ -12,7 +12,7 @@ public struct CellData
     public uint genomeId;
     public uint direction;
     public uint activeGene;
-    uint pad0;
+    public uint seedProps; // bytes 0,1 - speed; 2,3 - timer
 }
 
 public struct Gene {

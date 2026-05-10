@@ -45,7 +45,7 @@ public class WorldRenderer : MonoBehaviour
                 RenderMode.SoilEnergy => soilMaterial,
                 _ => throw new System.NotImplementedException(),
             };
-            blitMat.SetTexture("_SoilTex", world.SoilRTSource);
+            blitMat.SetTexture("_SoilTex", world.SoilTexture);
             blitMat.SetBuffer("_Cells", world.CellsBuffer);
             blitMat.SetFloat("_Blend", renderMode == RenderMode.SoilEnergy ? 1f : 0f);
             blitMat.SetInteger("_Width", world.width);

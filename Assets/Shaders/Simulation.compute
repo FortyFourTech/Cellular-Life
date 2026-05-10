@@ -2,6 +2,7 @@
 // Basic compute kernels for iteration 0 (skeleton implementations).
 
 #pragma kernel DiffuseEnergyKernel
+#pragma kernel ApplySoilChange
 #pragma kernel LeafKernel
 #pragma kernel RootKernel
 #pragma kernel AntennaKernel
@@ -9,6 +10,7 @@
 #pragma kernel TransportKernel
 #pragma kernel AbsorptionKernel
 #pragma kernel DeathKernel
+#pragma kernel SeedKernel
 // #pragma kernel BehaviorKernel
 #pragma kernel StatsKernel
 
@@ -55,7 +57,28 @@ void DiffuseEnergyKernel(uint3 id : SV_DispatchThreadID)
     _SoilTexWrite[pos] = next;
 }
 
-[numthreads(32,32,1)]
+[numthreads(8,8,1)]
+void ApplySoilChange(uint3 id: SV_DispatchThreadID)
+{
+    _SoilTexRead[id.xy] = _SoilTexWrite[id.xy];
+}
+
+// [numthreads(8,8,1)]
+// void ApplyCellChange(uint3 id: SV_DispatchThreadID)
+// {
+//     uint cellIdx = PosToIdx(id.xy);
+//     _CellsRead[cellIdx] = _CellsWrite[cellIdx];
+// }
+
+// [numthreads(8,8,1)]
+// void ApplyCellEnergyChange(uint3 id: SV_DispatchThreadID)
+// {
+//     uint cellIdx = PosToIdx(id.xy);
+//     _Cells[cellIdx].energy += _EnergyDeltas[cellIdx];
+//     _EnergyDeltas[cellIdx] = 0.0;
+// }
+
+[numthreads(8,8,1)]
 void LeafKernel(uint3 id : SV_DispatchThreadID)
 {
     uint cellIdx = PosToIdx(id.xy);
@@ -71,7 +94,7 @@ void LeafKernel(uint3 id : SV_DispatchThreadID)
     _Cells[cellIdx] = c;
 }
 
-[numthreads(32,32,1)]
+[numthreads(8,8,1)]
 void RootKernel(uint3 id : SV_DispatchThreadID)
 {
     uint cellIdx = PosToIdx(id.xy);
@@ -86,7 +109,7 @@ void RootKernel(uint3 id : SV_DispatchThreadID)
     _SoilTexWrite[pos] = float2(soil.x - produced, soil.y); // deplete organics
 }
 
-[numthreads(32,32,1)]
+[numthreads(8,8,1)]
 void AntennaKernel(uint3 id : SV_DispatchThreadID)
 {
     uint cellIdx = PosToIdx(id.xy);
@@ -101,7 +124,7 @@ void AntennaKernel(uint3 id : SV_DispatchThreadID)
     _SoilTexWrite[pos] = float2(soil.x, soil.y - produced); // deplete energy
 }
 
-[numthreads(32,32,1)]
+[numthreads(8,8,1)]
 void RerouteKernel(uint3 id : SV_DispatchThreadID)
 {
     uint cellIdx = PosToIdx(id.xy);
@@ -117,7 +140,7 @@ void RerouteKernel(uint3 id : SV_DispatchThreadID)
     _Cells[cellIdx] = c;
 }
 
-[numthreads(32,32,1)]
+[numthreads(8,8,1)]
 void TransportKernel(uint3 id : SV_DispatchThreadID)
 {
     uint2 cellPos = id.xy;
@@ -136,39 +159,96 @@ void TransportKernel(uint3 id : SV_DispatchThreadID)
     }
 }
 
-[numthreads(32,32,1)]
+[numthreads(8,8,1)]
 void AbsorptionKernel(uint3 id : SV_DispatchThreadID)
 {
     uint cellIdx = PosToIdx(id.xy);
-    Cell c = _Cells[cellIdx];
-    if (c.cellType == 0) return;
+    Cell cell = _Cells[cellIdx];
+    if (cell.cellType == 0) return;
 
-    // MVP: simple metabolic cost per tick
-    float cost = ABSORB_LIFE_ENERGY * _Timestep;
-    c.energy -= cost;
-    _Cells[cellIdx] = c;
+    float cost = (cell.cellType == CELLTYPE_SEED ? ABSORB_LIFE_ENERGY_SEED : ABSORB_LIFE_ENERGY) * _Timestep;
+    cell.energy -= cost;
+    _Cells[cellIdx] = cell;
 }
 
-[numthreads(32,32,1)]
+[numthreads(8,8,1)]
 void DeathKernel(uint3 id : SV_DispatchThreadID)
 {
-    uint cellIdx = PosToIdx(id.xy);
+    uint2 cellPos = id.xy;
+    uint cellIdx = PosToIdx(cellPos);
     Cell c = _Cells[cellIdx];
-    if (c.cellType != 0
+    uint cellType = c.cellType;
+    float2 soil = _SoilTexRead[cellPos];
+    if (cellType > 0
         && (c.energy <= 0.0
-            || (c.cellType == CELLTYPE_ROOT && _SoilTexRead[id.xy].x <= 0)
-            || (c.cellType == CELLTYPE_ANTENNA && _SoilTexRead[id.xy].y <= 0)
-            || (c.cellType != CELLTYPE_ROOT && _SoilTexRead[id.xy].x > _CriticalOrg)
-            || (c.cellType != CELLTYPE_ANTENNA && _SoilTexRead[id.xy].y > _CriticalNrg)
-            || (c.cellType > 0 && c.cellType < CELLTYPE_SPROUT && c.energyFlow == 0 && c.parentDir == 0xffffffff)
+            || (cellType == CELLTYPE_ROOT && soil.x <= 0)
+            || (cellType == CELLTYPE_ANTENNA && soil.y <= 0)
+            || (cellType != CELLTYPE_ROOT && soil.x > _CriticalOrg)
+            || (cellType != CELLTYPE_ANTENNA && soil.y > _CriticalNrg)
+            || (cellType < CELLTYPE_SPROUT && !IsCellSendEnergy(cellPos, c) && IsCellSingle(cellPos, c))
             // || (c.cellType == CELLTYPE_WOOD && c.flowDirs = 0)
         )
     ) {
-        KillCell(id.xy);
+        KillCell(cellPos);
     }
 }
 
-// [numthreads(32,32,1)]
+[numthreads(8,8,1)]
+void SeedKernel(uint3 id : SV_DispatchThreadID)
+{
+    uint2 cellPos = id.xy;
+    uint cellIdx = PosToIdx(cellPos);
+    Cell cell = _Cells[cellIdx];
+    if (cell.cellType != CELLTYPE_SEED) return; // only seeds
+
+    uint seedTimer = UnpackInt1(cell.seedProps);
+
+    // move if single
+    [branch]
+    if (seedTimer == 255u) {
+        ConvertToSprout(cellPos);
+    } else {
+        // deplete timer
+        --seedTimer;
+        SetIntByte(cell.seedProps, seedTimer, 0);
+
+        bool isSingle = IsCellSingle(cellPos, cell);
+        uint seedSpeed = UnpackInt3(cell.seedProps);
+
+        [branch]
+        if (isSingle) {
+            [branch]
+            if (seedSpeed > 0) {
+                // Move seed
+                uint moveDir = cell.direction;
+                uint2 targetCoord = ShiftCoord(cellPos, moveDir);
+                uint targetIdx = PosToIdx(targetCoord);
+
+                [branch]
+                if (_Cells[targetIdx].cellType > 0) {
+                    // kill target cell and self
+                    KillCell(targetCoord);
+                    KillCell(cellPos);
+                } else {
+                    // copy self in movement direction
+                    cell.seedProps = 47;
+                    _Cells[targetIdx] = cell;
+
+                    // erase self in current position
+                    _Cells[cellIdx] = (Cell)0;
+                }
+            } else {
+                cell.seedProps = 50;
+                _Cells[cellIdx] = cell;
+            }
+        } else {
+            cell.seedProps = 52;
+            _Cells[cellIdx] = cell;
+        }
+    }
+}
+
+// [numthreads(8,8,1)]
 // void BehaviorKernel(uint3 id : SV_DispatchThreadID)
 // {
 //     uint cellIdx = PosToIdx(id.xy);
@@ -179,7 +259,7 @@ void DeathKernel(uint3 id : SV_DispatchThreadID)
 //     ExecuteGene(id.xy, _Genomes[c.genomeId].genes[c.activeGene]);
 // }
 
-[numthreads(32,32,1)]
+[numthreads(8,8,1)]
 void StatsKernel(uint3 id : SV_DispatchThreadID)
 {
     uint cellIdx = PosToIdx(id.xy);
