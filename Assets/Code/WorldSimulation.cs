@@ -8,6 +8,9 @@ public class WorldSimulation : MonoBehaviour
     public ComputeShader simulationShader;
     public ComputeShader behaviorShader;
     public ComputeShader mutationShader;
+    [SerializeField] private GenomeStorage _genomeStorage;
+    public SimParams SimParams;
+
 
     // public bool isPaused = true;
 
@@ -70,12 +73,6 @@ public class WorldSimulation : MonoBehaviour
 
     public ComputeBuffer CellsBuffer => cellsBuffer;
     public ComputeBuffer GenomesBuffer => genomesBuffer;
-
-    public CellData[] CellsData;
-    public GenomeData[] GenomesData;
-    public SimParams SimParams;
-
-    public GenomeData GetGenome(int id) => GenomesData[id]; // GenomeData[CellsData[idx].genomeIdx
 
     public uint CellsNum => stats[0];
     public uint LeavesNum => stats[1];

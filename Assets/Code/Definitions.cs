@@ -39,9 +39,10 @@ public struct Gene {
     // Enum.IsDefined(typeof(CellType), GetGrowCellType(dir)) ? GetGrowCellType(dir).ToString() : "-";
 };
 
+[Serializable]
 public unsafe struct GenomeData {
     public fixed byte genes[1024]; // 4 * 8 * 32 = 1024
-    public uint cellNum;
+    [NonSerialized] public uint cellNum;
     uint pad0;
     uint pad1;
     uint pad2;

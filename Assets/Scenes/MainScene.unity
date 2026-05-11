@@ -1097,10 +1097,9 @@ MonoBehaviour:
   world: {fileID: 852852090}
   wRenderer: {fileID: 1011163767}
   panZoom: {fileID: 1546149278}
+  _genomeStorage: {fileID: 11400000, guid: 6f61eeab8d72f634e845ed54ecf76f5a, type: 2}
   isPaused: 1
   simulationSpeed: 1
-  sunlight: 1
-  diffusionRate: 0.2
   cellEnergyCost: 0.005
   activeBrush: 0
   brushRadius: 4
@@ -1380,6 +1379,7 @@ MonoBehaviour:
   simulationShader: {fileID: 7200000, guid: 1b015c1b81519de4a82b98a277ea3570, type: 3}
   behaviorShader: {fileID: 7200000, guid: bf769b9a091bb304f8f2a0fdf641ca2c, type: 3}
   mutationShader: {fileID: 7200000, guid: ddbb8936f8a47364eae1f178b6dcc868, type: 3}
+  _genomeStorage: {fileID: 11400000, guid: 6f61eeab8d72f634e845ed54ecf76f5a, type: 2}
   SimParams:
     _Width: 768
     _Height: 768

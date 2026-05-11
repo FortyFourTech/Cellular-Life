@@ -10,14 +10,13 @@ public class SimulationUI : MonoBehaviour
     public WorldSimulation world;
     public WorldRenderer wRenderer;
     public UIPanZoom panZoom;
+    [SerializeField] private GenomeStorage _genomeStorage;
 
     // Simulation controls
     public bool isPaused = false;
     public float simulationSpeed = 1.0f; // steps per frame
 
     // World parameters
-    public float sunlight = 1.0f;
-    public float diffusionRate = 0.2f;
     public float cellEnergyCost = 0.005f;
 
     // Brush settings
@@ -53,6 +52,8 @@ public class SimulationUI : MonoBehaviour
     // optional pan/zoom helper
     RawImage panRawImage;
 
+    SimParams _simParams;
+
     void Reset()
     {
         // try to auto-assign world
@@ -64,6 +65,11 @@ public class SimulationUI : MonoBehaviour
 
     private void Start() {
         if (panZoom != null) panRawImage = panZoom.GetComponent<RawImage>();
+
+        if (world)
+        {
+            _simParams = world.SimParams;
+        }
     }
 
     void Update()
@@ -130,6 +136,15 @@ public class SimulationUI : MonoBehaviour
                 ApplyBrushAtScreenPosition(Input.mousePosition);
             }
         }
+
+#if UNITY_EDITOR
+        if (Input.GetMouseButtonDown(1) && inspectedCell.cellType != CellType.Empty)
+        {
+            _genomeStorage.genomes.Add(inspectedGenome);
+            UnityEditor.EditorUtility.SetDirty(_genomeStorage);
+            UnityEditor.AssetDatabase.SaveAssetIfDirty(_genomeStorage);
+        }
+#endif
     }
 
     void OnGUI()
@@ -155,10 +170,10 @@ public class SimulationUI : MonoBehaviour
 
         GUILayout.Space(6);
         GUILayout.Label("World Parameters", GUI.skin.label);
-        GUILayout.Label($"Sunlight: {sunlight:F2}");
-        sunlight = GUILayout.HorizontalSlider(sunlight, 0f, 10f);
-        GUILayout.Label($"Diffusion Rate: {diffusionRate:F2}");
-        diffusionRate = GUILayout.HorizontalSlider(diffusionRate, 0f, 10f);
+        GUILayout.Label($"Sunlight: {_simParams._Sunlight:F2}");
+        _simParams._Sunlight = GUILayout.HorizontalSlider(_simParams._Sunlight, 0f, 10f);
+        GUILayout.Label($"Diffusion Rate: {_simParams._DiffusionRate:F2}");
+        _simParams._DiffusionRate = GUILayout.HorizontalSlider(_simParams._DiffusionRate, 0f, 10f);
         // GUILayout.Label($"Cell energy cost/tick: {cellEnergyCost:F4}");
         // cellEnergyCost = GUILayout.HorizontalSlider(cellEnergyCost, 0f, 0.1f);
         // if (GUILayout.Button("Apply World Params")) ApplySimParameters();
@@ -460,35 +475,6 @@ public class SimulationUI : MonoBehaviour
         }
     }
 
-    void ReadGenomeFromGpu(int genomeId)
-    {
-        if (world == null || world.GenomesBuffer == null) return;
-
-        inspectedGenome = world.GetGenome(genomeId);
-        return;
-
-        // attempt to read genome buffer
-        if (world.GenomesBuffer == null)
-        {
-            GUILayout.Label("Genome buffer not available");
-        }
-        else
-        {
-            try
-            {
-                var gid = (int)inspectedCell.genomeId;
-                var garr = new GenomeData[1];
-                world.GenomesBuffer.GetData(garr, 0, gid, 1);
-                inspectedGenome = garr[0];
-            }
-            catch (System.Exception ex)
-            {
-                genomeReadError = "Error reading genome: " + ex.Message;
-                GUILayout.Label(genomeReadError);
-            }
-        }
-    }
-
     void Generate()
     {
         world?.InitWorld();
@@ -508,8 +494,10 @@ public class SimulationUI : MonoBehaviour
     {
         if (world == null) return;
 
-        world.SimParams._Sunlight = sunlight;
-        world.SimParams._DiffusionRate = diffusionRate;
+        world.SimParams._Sunlight = _simParams._Sunlight;
+        world.SimParams._DiffusionRate = _simParams._DiffusionRate;
+        // _simParams._CriticalOrg;
+        // _simParams._CriticalNrg;
     }
 
     void CreateSeedFromGenome()
