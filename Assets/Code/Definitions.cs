@@ -68,7 +68,7 @@ public static class CellTypeExtension
     public static string Name(this CellType cellType) => cellType.ToString();
     public static string Symbol(this CellType cellType) => cellType switch
     {
-        CellType.Empty => "[0]",
+        CellType.Empty => "[ 0]",
         CellType.Leaf => "🟢",
         CellType.Root => "🔴",
         CellType.Antenna => "🔵",

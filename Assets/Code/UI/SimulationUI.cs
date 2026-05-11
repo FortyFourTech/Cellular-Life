@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -207,17 +208,16 @@ public class SimulationUI : MonoBehaviour
         GUILayout.EndScrollView();
         GUILayout.EndArea();
 
-        // Right-side inspector for cell under cursor
         DrawCellInspectorPanel();
     }
 
     void DrawCellInspectorPanel()
     {
         const float pad = 8f;
-        float inspectorW = 320f;
+        float inspectorW = 350f;
         Rect area = new Rect(Screen.width - pad - inspectorW, pad, inspectorW, Screen.height - pad*2);
         GUILayout.BeginArea(area, GUI.skin.box);
-        GUILayout.Label("Cell Inspector", GUI.skin.label);
+        // GUILayout.Label("Cell Inspector", GUI.skin.label);
 
         Vector2 mouse = Input.mousePosition;
         int gx, gy;
@@ -253,17 +253,18 @@ public class SimulationUI : MonoBehaviour
         GUILayout.Label($"energy: {inspectedCell.energy:F4}");
         GUILayout.Label($"energyFlow: {inspectedCell.energyFlow}");
         GUILayout.Label($"parentDir: {inspectedCell.parentDir}");
-        GUILayout.Label($"genomeId: {inspectedCell.genomeId}");
+        // GUILayout.Label($"genomeId: {inspectedCell.genomeId}");
         GUILayout.Label($"direction: {inspectedCell.direction}");
-        GUILayout.Label($"activeGene: {inspectedCell.activeGene}");
+        // GUILayout.Label($"activeGene: {inspectedCell.activeGene}");
         if (inspectedCell.cellType == CellType.Seed)
         {
             GUILayout.Label($"seed timer: {GetByte(inspectedCell.seedProps, 0)}");
             GUILayout.Label($"seed speed: {GetByte(inspectedCell.seedProps, 2)}");
         }
 
-        GUILayout.Space(60);
-        GUILayout.Label($"Genome#{inspectedCell.genomeId} [{inspectedCell.activeGene}]");
+        // GUILayout.Label("-----------------------------------");
+        // GUILayout.Space(6);
+        GUILayout.Label($"Genome#{inspectedCell.genomeId} (cells: {inspectedGenome.cellNum})");
         genomeReadError = "";
         if (inspectedGenome.cellNum == 0u)
         {
@@ -273,23 +274,55 @@ public class SimulationUI : MonoBehaviour
         {
             // ReadGenomeFromGpu(inspectedCell.genomeId);
 
-            var inspectedGene = inspectedGenome.GetGene(inspectedCell.activeGene);
+            // var inspectedGene = inspectedGenome.GetGene(inspectedCell.activeGene);
 
-            GUILayout.Label($"                              {inspectedGene.GetGrowCellType(0).Symbol()}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
-            GUILayout.Label($"growDirections: {inspectedGene.GetGrowCellTypeString(3)}  +  {inspectedGene.GetGrowCellTypeString(1)}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
-            GUILayout.Label($"                              {inspectedGene.GetGrowCellTypeString(2)}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
+            // GUILayout.Label($"                              {inspectedGene.GetGrowCellType(0).Symbol()}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
+            // GUILayout.Label($"growDirections: {inspectedGene.GetGrowCellTypeString(3)}  +  {inspectedGene.GetGrowCellTypeString(1)}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
+            // GUILayout.Label($"                              {inspectedGene.GetGrowCellTypeString(2)}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
 
-            var cond1 = GetByte(inspectedGene.conditions, 0) % 26;
-            var cond1String = cond1 >= 13 ? "-" : $"{cond1}";
-            GUILayout.Label($"condition 1: {cond1String} ({inspectedGene.condParam1}) (raw: {GetByte(inspectedGene.conditions, 0)})");
-            var cond2 = GetByte(inspectedGene.conditions, 1) % 26;
-            var cond2String = cond2 >= 13 ? "-" : $"{cond2}";
-            GUILayout.Label($"condition 2: {cond2String} ({inspectedGene.condParam2}) (raw: {GetByte(inspectedGene.conditions, 1)})");
+            // var cond1 = GetByte(inspectedGene.conditions, 0) % 26;
+            // var cond1String = cond1 >= 13 ? "-" : $"{cond1}";
+            // GUILayout.Label($"condition 1: {cond1String} ({inspectedGene.condParam1}) (raw: {GetByte(inspectedGene.conditions, 0)})");
+            // var cond2 = GetByte(inspectedGene.conditions, 1) % 26;
+            // var cond2String = cond2 >= 13 ? "-" : $"{cond2}";
+            // GUILayout.Label($"condition 2: {cond2String} ({inspectedGene.condParam2}) (raw: {GetByte(inspectedGene.conditions, 1)})");
 
-            GUILayout.Label($"condResult: com1[{GetByte(inspectedGene.condResult,0)%26}] com2[{GetByte(inspectedGene.condResult, 1)%26}] gene1[{GetByte(inspectedGene.condResult, 2)%32}] gene2[{GetByte(inspectedGene.condResult, 3)%32}]"); // two commands in two first bites: 0 - command for success, 1 - command for fail, 2 - gene for success, 3 - gene for fail
-            GUILayout.Label($"comGenes: com1Success[{GetByte(inspectedGene.comGenes,0)%32}] com1fail[{GetByte(inspectedGene.comGenes, 1)%32}] com2Success[{GetByte(inspectedGene.comGenes, 2)%32}] com2fail[{GetByte(inspectedGene.comGenes, 3)%32}]"); // gene indicies: 0 - for first command success, 1 - for first command fail, 2 - for second command success, 3 - for second command fail
-            GUILayout.Label($"aloneCommands: com1[{GetByte(inspectedGene.aloneCommands,0)%20}] com2[{GetByte(inspectedGene.aloneCommands, 1)%20}]"); // two commands in two first bites: 0 - for success, 1 - for fail
-            GUILayout.Label($"aloneComGenes: com1Success[{GetByte(inspectedGene.aloneComGenes,0)%32}] com1fail[{GetByte(inspectedGene.aloneComGenes,1)%32}] com2success[{GetByte(inspectedGene.aloneComGenes,2)%32}] com2fail[{GetByte(inspectedGene.aloneComGenes,3)%32}]"); // gene indicies: 0 - for first command success, 1 - for first command fail, 2 - for second command success, 3 - for second command fail
+            // GUILayout.Label($"condResult: com1[{GetByte(inspectedGene.condResult,0)%26}] com2[{GetByte(inspectedGene.condResult, 1)%26}] gene1[{GetByte(inspectedGene.condResult, 2)%32}] gene2[{GetByte(inspectedGene.condResult, 3)%32}]"); // two commands in two first bites: 0 - command for success, 1 - command for fail, 2 - gene for success, 3 - gene for fail
+            // GUILayout.Label($"comGenes: com1Success[{GetByte(inspectedGene.comGenes,0)%32}] com1fail[{GetByte(inspectedGene.comGenes, 1)%32}] com2Success[{GetByte(inspectedGene.comGenes, 2)%32}] com2fail[{GetByte(inspectedGene.comGenes, 3)%32}]"); // gene indicies: 0 - for first command success, 1 - for first command fail, 2 - for second command success, 3 - for second command fail
+            // GUILayout.Label($"aloneCommands: com1[{GetByte(inspectedGene.aloneCommands,0)%20}] com2[{GetByte(inspectedGene.aloneCommands, 1)%20}]"); // two commands in two first bites: 0 - for success, 1 - for fail
+            // GUILayout.Label($"aloneComGenes: com1Success[{GetByte(inspectedGene.aloneComGenes,0)%32}] com1fail[{GetByte(inspectedGene.aloneComGenes,1)%32}] com2success[{GetByte(inspectedGene.aloneComGenes,2)%32}] com2fail[{GetByte(inspectedGene.aloneComGenes,3)%32}]"); // gene indicies: 0 - for first command success, 1 - for first command fail, 2 - for second command success, 3 - for second command fail
+
+            StringBuilder sb = new StringBuilder();
+            for (uint i = 0; i < 32u; ++i)
+            {
+                Gene g = inspectedGenome.GetGene(i);
+
+                string grow0 = g.GetGrowCellTypeString(0);
+                string grow1 = g.GetGrowCellTypeString(1);
+                string grow2 = g.GetGrowCellTypeString(2);
+                string grow3 = g.GetGrowCellTypeString(3);
+
+                uint cond1Raw = GetByte(g.conditions, 0) % 26u;
+                var cond1String = cond1Raw >= 13 ? "- " : $"{cond1Raw}";
+                uint cond2Raw = GetByte(g.conditions, 1) % 26u;
+                var cond2String = cond2Raw >= 13 ? "- " : $"{cond2Raw}";
+
+                uint cr0 = GetByte(g.condResult, 0) % 26u;
+                uint cr1 = GetByte(g.condResult, 1) % 26u;
+                uint gr0 = GetByte(g.condResult, 2) % 32u;
+                uint gr1 = GetByte(g.condResult, 3) % 32u;
+
+                string activeMark = (i == inspectedCell.activeGene) ? "<color=green>" : "<color=white>";
+
+                // Compact one-line representation per gene
+                sb.AppendFormat("{0}{1:00}: {2}{3}{4}{5} | {6}({7:F1}), {8}({9:F1}) | c:{10}, {11} g:{12}, {13}\n",
+                    activeMark, i, grow0, grow1, grow2, grow3,
+                    cond1String, g.condParam1, cond2String, g.condParam2,
+                    cr0, cr1, gr0, gr1);
+            }
+
+            // GUILayout.Label($"Genes:");
+            GUILayout.Label(sb.ToString());
 
             // unsafe
             // {
