@@ -121,6 +121,6 @@ void CopyCellKernel(uint3 id : SV_DispatchThreadID)
 void CopyGenomeKernel(uint3 id : SV_DispatchThreadID)
 {
     uint idx = _RequestedGenomeIdx;
-    if (idx >= _GenomeCapacity) return;
+    if (idx >= _Width * _Height) return;
     _SingleGenomeOut[0] = _Genomes[idx];
 }

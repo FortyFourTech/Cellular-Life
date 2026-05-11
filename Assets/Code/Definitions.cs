@@ -79,6 +79,7 @@ public static class CellTypeExtension
     };
 }
 
+[Serializable]
 public struct SimParams
 {
     public int _Width;
@@ -86,9 +87,13 @@ public struct SimParams
     public float _Timestep;
     public float _Timestamp;
     public float _Rand;
-    public int _GenomeCapacity;
     public float _Sunlight;
     public float _DiffusionRate;
+    public float _CriticalOrg;
+    public float _CriticalNrg;
+    uint pad0;
+    uint pad1;
+    uint pad2;
 }
 
 struct CommandEntry {

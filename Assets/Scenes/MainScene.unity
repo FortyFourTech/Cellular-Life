@@ -589,9 +589,16 @@ MonoBehaviour:
   simulationShader: {fileID: 7200000, guid: 1b015c1b81519de4a82b98a277ea3570, type: 3}
   behaviorShader: {fileID: 7200000, guid: bf769b9a091bb304f8f2a0fdf641ca2c, type: 3}
   mutationShader: {fileID: 7200000, guid: ddbb8936f8a47364eae1f178b6dcc868, type: 3}
-  width: 512
-  height: 512
-  genomeCapacity: 262144
+  SimParams:
+    _Width: 768
+    _Height: 768
+    _Timestep: 0.1
+    _Timestamp: 0
+    _Rand: 0
+    _Sunlight: 2
+    _DiffusionRate: 0.1
+    _CriticalOrg: 1
+    _CriticalNrg: 1
 --- !u!1 &1011163764
 GameObject:
   m_ObjectHideFlags: 0

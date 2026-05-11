@@ -175,7 +175,7 @@ bool IsCellSendEnergy(uint2 cellPos, in Cell cell) {
 // and overrides genomeId if found one.
 uint AllocateGenomeSlot(Genome genome, uint sourceGenomeId)
 {
-    for (uint i = 0; i < (uint)_GenomeCapacity; ++i) {
+    for (uint i = 0; i < _Width*_Height; ++i) {
         uint cellNum;
         InterlockedCompareExchange(_Genomes[i].cellNum, 0, 1, cellNum);
         if (cellNum == 0u) {

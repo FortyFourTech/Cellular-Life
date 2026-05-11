@@ -48,11 +48,11 @@ public class WorldRenderer : MonoBehaviour
             blitMat.SetTexture("_SoilTex", world.SoilTexture);
             blitMat.SetBuffer("_Cells", world.CellsBuffer);
             blitMat.SetFloat("_Blend", renderMode == RenderMode.SoilEnergy ? 1f : 0f);
-            blitMat.SetInteger("_Width", world.width);
-            blitMat.SetInteger("_Height", world.height);
-            blitMat.SetFloat("_OrgThreshold", world.organicsThreshold);
-            blitMat.SetFloat("_NrgThreshold", world.energyThreshold);
-            blitMat.SetFloat("_Threshold", renderMode == RenderMode.SoilEnergy ? world.energyThreshold : world.organicsThreshold);
+            blitMat.SetInteger("_Width", world.SimParams._Width);
+            blitMat.SetInteger("_Height", world.SimParams._Height);
+            blitMat.SetFloat("_OrgThreshold", world.SimParams._CriticalOrg);
+            blitMat.SetFloat("_NrgThreshold", world.SimParams._CriticalNrg);
+            blitMat.SetFloat("_Threshold", renderMode == RenderMode.SoilEnergy ? world.SimParams._CriticalNrg : world.SimParams._CriticalOrg);
 
             Graphics.Blit(null, worldRT, blitMat);
         }

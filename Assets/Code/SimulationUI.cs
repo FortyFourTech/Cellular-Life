@@ -372,8 +372,8 @@ public class SimulationUI : MonoBehaviour
             u = Mathf.Repeat(u, 1f);
             v = Mathf.Repeat(v, 1f);
 
-            gx = Mathf.Clamp((int)(u * world.width), 0, world.width - 1);
-            gy = Mathf.Clamp((int)(v * world.height), 0, world.height - 1);
+            gx = Mathf.Clamp((int)(u * world.SimParams._Width), 0, world.SimParams._Width - 1);
+            gy = Mathf.Clamp((int)(v * world.SimParams._Height), 0, world.SimParams._Height - 1);
             return true;
         }
 
@@ -390,8 +390,8 @@ public class SimulationUI : MonoBehaviour
         float nx = (mx2 - left) / size2;
         float ny = (my2 - top) / size2;
 
-        gx = Mathf.Clamp((int)(nx * world.width), 0, world.width - 1);
-        gy = Mathf.Clamp((int)(ny * world.height), 0, world.height - 1);
+        gx = Mathf.Clamp((int)(nx * world.SimParams._Width), 0, world.SimParams._Width - 1);
+        gy = Mathf.Clamp((int)(ny * world.SimParams._Height), 0, world.SimParams._Height - 1);
         return true;
     }
 
@@ -400,7 +400,7 @@ public class SimulationUI : MonoBehaviour
         // haveInspectedCell = false;
         genomeReadError = "";
         if (world == null || world.CellsBuffer == null) return;
-        int idx = gy * world.width + gx;
+        int idx = gy * world.SimParams._Width + gx;
 
         world.RequestCellAndGenome(gx, gy, (cell, genome) =>
         {
@@ -498,11 +498,11 @@ public class SimulationUI : MonoBehaviour
         for (int oy = -r; oy <= r; ++oy)
         {
             int y = gy + oy;
-            if (y < 0 || y >= world.height) continue;
+            if (y < 0 || y >= world.SimParams._Height) continue;
             for (int ox = -r; ox <= r; ++ox)
             {
                 int x = gx + ox;
-                if (x < 0 || x >= world.width) continue;
+                if (x < 0 || x >= world.SimParams._Width) continue;
                 if ((ox * ox + oy * oy) > r2) continue;
 
                 switch (activeBrush)

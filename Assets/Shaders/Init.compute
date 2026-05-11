@@ -64,6 +64,6 @@ void CleanCells(uint3 id : SV_DispatchThreadID)
 void CleanGenomes(uint3 id : SV_DispatchThreadID)
 {
     uint genIdx = id.x;
-    if (genIdx >= _GenomeCapacity) return;
+    if (genIdx >= _Width * _Height) return;
     _Genomes[genIdx] = (Genome)0;
 }

@@ -8,17 +8,11 @@ public class WorldSimulation : MonoBehaviour
     public ComputeShader simulationShader;
     public ComputeShader behaviorShader;
     public ComputeShader mutationShader;
-    public int width = 128;
-    public int height = 128;
-    public int genomeCapacity = 1024;
-    public float organicsThreshold = 1f;
-    public float energyThreshold = 1f;
 
     // public bool isPaused = true;
 
     RenderTexture soilRT0;
     RenderTexture soilRT1;
-    bool isStarted = false;
 
     ConstantBuffer<SimParams> simParamsBuffer;
     ComputeBuffer cellsBuffer;
@@ -118,10 +112,10 @@ public class WorldSimulation : MonoBehaviour
         }
 
         // rendertextures
-        soilRT0 = new RenderTexture(width, height, 0, RenderTextureFormat.RGFloat);
+        soilRT0 = new RenderTexture(SimParams._Width, SimParams._Height, 0, RenderTextureFormat.RGFloat);
         soilRT0.enableRandomWrite = true;
         soilRT0.Create();
-        soilRT1 = new RenderTexture(width, height, 0, RenderTextureFormat.RGFloat);
+        soilRT1 = new RenderTexture(SimParams._Width, SimParams._Height, 0, RenderTextureFormat.RGFloat);
         soilRT1.enableRandomWrite = true;
         soilRT1.Create();
         // initialize soil as zeros (MVP)
@@ -134,9 +128,11 @@ public class WorldSimulation : MonoBehaviour
         Shader.SetGlobalTexture("_SoilTexWrite", soilRT1);
 
         // buffers
-        cellsBuffer = new ComputeBuffer(width*height, System.Runtime.InteropServices.Marshal.SizeOf(typeof(CellData)));
+        int cellsCapacity = SimParams._Width * SimParams._Height;
+        cellsBuffer = new ComputeBuffer(cellsCapacity, System.Runtime.InteropServices.Marshal.SizeOf(typeof(CellData)));
         Shader.SetGlobalBuffer("_Cells",cellsBuffer);
 
+        int genomeCapacity = cellsCapacity;
         var emptyGenomes = new GenomeData[genomeCapacity];
         for (int i = 0; i < genomeCapacity; i++)
         {
@@ -153,32 +149,20 @@ public class WorldSimulation : MonoBehaviour
         Shader.SetGlobalBuffer("_Stats", statsBuffer);
 
         // set constants
-        SimParams = new()
-        {
-            _Width = width,
-            _Height = height,
-            _Timestep = 0.1f,
-            _GenomeCapacity = genomeCapacity,
-            _Sunlight = 1.0f,
-            _DiffusionRate = 0.2f,
-        };
         simParamsBuffer = new ConstantBuffer<SimParams>();
         UpdateTimestamp();
         simParamsBuffer.SetGlobal(Shader.PropertyToID("_SimParams"));
 
-        simulationShader.SetFloat("_CriticalOrg", organicsThreshold);
-        simulationShader.SetFloat("_CriticalNrg", energyThreshold);
-
         // allocate command buffer (4 uints per entry)
         int cmdElemSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(CommandEntry));
-        commandBuffer = new ComputeBuffer(Mathf.Max(1, width * height), cmdElemSize);
+        commandBuffer = new ComputeBuffer(Mathf.Max(1, cellsCapacity), cmdElemSize);
         // zero init
-        var zeros = new CommandEntry[width * height];
+        var zeros = new CommandEntry[cellsCapacity];
         commandBuffer.SetData(zeros);
         Shader.SetGlobalBuffer("_CommandBuffer", commandBuffer);
 
         // create mutator buffers (capacity = width*height)
-        int maxDeltas = width * height;
+        int maxDeltas = cellsCapacity;
         organicsDeltaBuffer = new ComputeBuffer(maxDeltas, System.Runtime.InteropServices.Marshal.SizeOf(typeof(ResourceDelta)));
         energyDeltaBuffer = new ComputeBuffer(maxDeltas, System.Runtime.InteropServices.Marshal.SizeOf(typeof(ResourceDelta)));
         killBuffer = new ComputeBuffer(maxDeltas, System.Runtime.InteropServices.Marshal.SizeOf(typeof(KillCoord)));
@@ -217,8 +201,8 @@ public class WorldSimulation : MonoBehaviour
 
     public void InitWorld()
     {
-        int cx = Mathf.CeilToInt(width / 8f);
-        int cy = Mathf.CeilToInt(height / 8f);
+        int cx = Mathf.CeilToInt(SimParams._Width / 8f);
+        int cy = Mathf.CeilToInt(SimParams._Height / 8f);
 
         var cb = new CommandBuffer();
         cb.name = "InitPipeline";
@@ -242,7 +226,7 @@ public class WorldSimulation : MonoBehaviour
 
         // clean the field from cells
         int genomesKernelIdx = initShader.FindKernel("CleanGenomes");
-        cb.DispatchCompute(initShader, genomesKernelIdx, genomeCapacity / 64, 1, 1);
+        cb.DispatchCompute(initShader, genomesKernelIdx, cx * cy, 1, 1);
 
         Graphics.ExecuteCommandBuffer(cb);
         cb.Release();
@@ -250,16 +234,14 @@ public class WorldSimulation : MonoBehaviour
 
     public void PopulateWorld()
     {
-        int cx = Mathf.CeilToInt(width / (32 * 8));
-        int cy = Mathf.CeilToInt(height / (32 * 8));
+        int cx = Mathf.CeilToInt(SimParams._Width / (32 * 8));
+        int cy = Mathf.CeilToInt(SimParams._Height / (32 * 8));
         UpdateTimestamp();
 
         // init starting cells
         int cellsKernelIdx = initShader.FindKernel("InitCells");
         initShader.SetInt("_CellRowCount", cx * 8);
         initShader.Dispatch(cellsKernelIdx, cx, cy, 1);
-
-        isStarted = true;
 
         // get data (stats only). Avoid full-buffer readbacks here because they are
         // expensive. Use `RequestCellAndGenome(x,y, callback)` to read a single cell
@@ -281,12 +263,6 @@ public class WorldSimulation : MonoBehaviour
 
     public void Step()
     {
-        if (!isStarted)
-        {
-            CreateTestCells();
-            isStarted = true;
-        }
-
         // apply scheduled mutator operations between steps
         if (organicsScheduled && kernelMutOrganicsIdx >= 0)
         {
@@ -315,8 +291,8 @@ public class WorldSimulation : MonoBehaviour
 
         UpdateTimestamp();
 
-        int cx = Mathf.CeilToInt(width / 8f);
-        int cy = Mathf.CeilToInt(height / 8f);
+        int cx = Mathf.CeilToInt(SimParams._Width / 8f);
+        int cy = Mathf.CeilToInt(SimParams._Height / 8f);
 
         // soil kernels
         cb.DispatchCompute(simulationShader, kernelEnergyIdx, cx, cy, 1);
@@ -396,18 +372,6 @@ public class WorldSimulation : MonoBehaviour
         });
     }
 
-    void CreateTestCells()
-    {
-        int cellCapacity = width * height;
-        var arr = new CellData[cellCapacity];
-        for (int i = 0; i < cellCapacity; ++i) { arr[i].cellType = 0; arr[i].energy = 0; }
-        // add a Leaf in center
-        int midx = width/2, midy = height/2;
-        arr[midy * height + midx] = new CellData() { cellType = CellType.Leaf, energy = 1.0f };
-        arr[midy * height + midx + 1] = new CellData() { cellType = CellType.Wood, energy = 0.5f };
-        cellsBuffer.SetData(arr);
-    }
-
     private void OnDestroy()
     {
         simParamsBuffer?.Release();
@@ -426,8 +390,8 @@ public class WorldSimulation : MonoBehaviour
 
     private void ApplySoilChange(CommandBuffer cb = null)
     {
-        int cx = Mathf.CeilToInt(width / 8f);
-        int cy = Mathf.CeilToInt(height / 8f);
+        int cx = Mathf.CeilToInt(SimParams._Width / 8f);
+        int cy = Mathf.CeilToInt(SimParams._Height / 8f);
 
         if (cb != null) {
             cb.DispatchCompute(simulationShader, kernelApplySoilIdx, cx, cy, 1);
@@ -527,8 +491,8 @@ public class WorldSimulation : MonoBehaviour
     // onComplete is called with the CellData and GenomeData (GenomeData may be default if absent).
     public void RequestCellAndGenome(int x, int y, Action<CellData, GenomeData> onComplete)
     {
-        int idx = y * width + x;
-        int total = width * height;
+        int idx = y * SimParams._Width + x;
+        int total = SimParams._Width * SimParams._Height;
         if (idx < 0 || idx >= total) {
             Debug.LogWarning($"RequestCellAndGenome: coords out of range ({x},{y})");
             onComplete?.Invoke(default, default);

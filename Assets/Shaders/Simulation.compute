@@ -17,12 +17,6 @@
 #include "Defines.hlsl"
 #include "CommonParams.hlsl"
 
-cbuffer SimulationParams
-{
-    float _CriticalOrg;
-    float _CriticalNrg;
-};
-
 RWStructuredBuffer<uint> _Stats; // small stats buffer
 
 #include "Common.hlsl"
@@ -181,7 +175,8 @@ void TransportKernel(uint3 id : SV_DispatchThreadID)
         uint neighborIdx = PosToIdx(neighborPos);
         if (_Cells[neighborIdx].cellType == 0) continue;
 
-        float transformDelta = GetIntBit(_Cells[cellIdx].energyFlow, dir) * max(_Cells[cellIdx].energy - 1.0, 0) * TRANSPORT_SPEED * _Timestep;
+        float lowerBound = min(_Cells[neighborIdx].energy, 1.0);
+        float transformDelta = GetIntBit(_Cells[cellIdx].energyFlow, dir) * max(_Cells[cellIdx].energy - lowerBound, 0) * TRANSPORT_SPEED * _Timestep;
         _Cells[cellIdx].energy -= transformDelta;
         _Cells[neighborIdx].energy += transformDelta;
     }
