@@ -15,6 +15,7 @@ public class SimulationUI : MonoBehaviour
     // Simulation controls
     public bool isPaused = false;
     public float simulationSpeed = 1.0f; // steps per frame
+    public bool executeSubstep = false;
 
     // World parameters
     public float cellEnergyCost = 0.005f;
@@ -164,6 +165,8 @@ public class SimulationUI : MonoBehaviour
         GUILayout.EndHorizontal();
         GUILayout.Label($"Speed: {simulationSpeed:F2}");
         simulationSpeed = GUILayout.HorizontalSlider(simulationSpeed, 0.01f, 1f);
+        if (isPaused)
+            executeSubstep = GUILayout.Toggle(executeSubstep, $"Execute Sim Substep ({world.SubstepIdx})");
 
         GUILayout.Space(6);
         GUILayout.Label("World Parameters", GUI.skin.label);
@@ -261,7 +264,8 @@ public class SimulationUI : MonoBehaviour
         }
 
         // display all fields of CellData
-        GUILayout.Label($"cellType: {inspectedCell.cellType.Symbol()}({inspectedCell.cellType})");
+        bool isSingle = inspectedCell.parentDir > 3 && inspectedCell.energyFlow == 0;
+        GUILayout.Label($"cellType: {inspectedCell.cellType.Symbol()}({inspectedCell.cellType}) single={isSingle}");
         GUILayout.Label($"energy: {inspectedCell.energy:F4}");
         GUILayout.Label($"energyFlow: {inspectedCell.energyFlow}");
         GUILayout.Label($"parentDir: {inspectedCell.parentDir}");
@@ -319,15 +323,15 @@ public class SimulationUI : MonoBehaviour
                 uint cond2Raw = GetByte(g.conditions, 1) % 26u;
                 var cond2String = cond2Raw >= 13 ? "- " : $"{cond2Raw}";
 
-                uint cr0 = GetByte(g.condResult, 0) % 26u;
-                uint cr1 = GetByte(g.condResult, 1) % 26u;
+                uint cr0 = GetByte(isSingle ? g.aloneCommands : g.condResult, 0) % (isSingle ? 20u : 26u);
+                uint cr1 = GetByte(isSingle ? g.aloneCommands : g.condResult, 1) % (isSingle ? 20u : 26u);
                 uint gr0 = GetByte(g.condResult, 2) % 32u;
                 uint gr1 = GetByte(g.condResult, 3) % 32u;
 
-                uint cg1 = GetByte(g.comGenes, 0) % 32u;
-                uint cg2 = GetByte(g.comGenes, 1) % 32u;
-                uint cg3 = GetByte(g.comGenes, 2) % 32u;
-                uint cg4 = GetByte(g.comGenes, 3) % 32u;
+                uint cg1 = GetByte(isSingle ? g.aloneComGenes : g.comGenes, 0) % 32u;
+                uint cg2 = GetByte(isSingle ? g.aloneComGenes : g.comGenes, 1) % 32u;
+                uint cg3 = GetByte(isSingle ? g.aloneComGenes : g.comGenes, 2) % 32u;
+                uint cg4 = GetByte(isSingle ? g.aloneComGenes : g.comGenes, 3) % 32u;
 
                 string activeMark = (i == inspectedCell.activeGene) ? "<color=green>" : "<color=white>";
 
@@ -464,19 +468,6 @@ public class SimulationUI : MonoBehaviour
         });
         // inspectedCell = world.CellsData[idx];
         return;
-
-        try
-        {
-            var carr = new CellData[1];
-            world.CellsBuffer.GetData(carr, 0, idx, 1);
-            inspectedCell = carr[0];
-            haveInspectedCell = true;
-        }
-        catch (System.Exception ex)
-        {
-            haveInspectedCell = false;
-            genomeReadError = "Error reading cell: " + ex.Message;
-        }
     }
 
     void Generate()
@@ -491,7 +482,8 @@ public class SimulationUI : MonoBehaviour
 
     void StepOnce()
     {
-        world?.Step();
+        if (executeSubstep) world?.StepSubstep();
+        else world?.Step();
     }
 
     void ApplySimParameters()

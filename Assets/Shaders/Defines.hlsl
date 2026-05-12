@@ -39,7 +39,7 @@ struct Cell {
     uint genomeId;
     uint direction; // [0,3] 2 bits
     uint activeGene; // [0,31] 5 bits
-    uint seedProps; // bytes 0,1 - speed; 2,3 - timer
+    uint seedProps; // bytes 0 - speed; 2 - timer
 };
 
 struct Gene {

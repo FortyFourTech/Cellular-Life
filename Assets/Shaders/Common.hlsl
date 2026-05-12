@@ -153,7 +153,7 @@ uint2 ShiftCoord(uint2 inPos, uint dir) {
 
 // #region Cell analysis
 bool IsCellSingle(uint2 cellPos, in Cell cell) {
-    return cell.parentDir == 0xFFFFFFFFu;
+    return cell.parentDir == 0xFFFFFFFFu && cell.energyFlow == 0;
 }
 bool IsCellReceiveEnergy(uint2 cellPos, in Cell cell) {
     bool result = false;
