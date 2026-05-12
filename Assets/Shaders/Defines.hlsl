@@ -27,9 +27,9 @@
 #define SPEED_SLOW 1u
 #define SPEED_FAST 2u
 
-#define CMD_SKIP 0u
-#define CMD_GROW 1u
-#define CMD_MOVE 2u
+#define CMD_SKIP 1u
+#define CMD_GROW 2u
+#define CMD_MOVE 3u
 
 struct Cell {
     uint cellType; // [0,6] 3 bits
