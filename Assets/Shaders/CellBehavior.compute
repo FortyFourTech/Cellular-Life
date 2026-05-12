@@ -352,10 +352,15 @@ bool CommandSendSeed(uint2 cellPos, uint speed) {
     uint2 targetPos = ShiftCoord(cellPos, cellDir);
     uint targetIdx = PosToIdx(targetPos);
 
+    if (_Cells[cellIdx].energy < ENERGY_GROW + 0.5)
+        return false;
+
     CreateCell(targetPos, CELLTYPE_SEED, cellDir, 0xFFFFFFFFu, _Cells[cellIdx].genomeId);
     _Cells[targetIdx].seedProps = (speed << 16) | 32;
+    _Cells[targetIdx].energy += 0.5;
+    _Cells[cellIdx].energy -= 0.5;
 
-    return true; // TODO: implement
+    return true;
 }
 bool CommandSpitEnergy(uint2 cellPos) {
     return true; // TODO: implement
