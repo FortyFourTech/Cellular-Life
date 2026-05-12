@@ -97,9 +97,9 @@ public struct SimParams
     uint pad2;
 }
 
-struct CommandEntry {
-    uint commandId;
-    uint successGene;
-    uint failGene;
+public struct CommandEntry {
+    public uint commandId;
+    public uint successGene;
+    public uint failGene;
     uint pad0;
 };

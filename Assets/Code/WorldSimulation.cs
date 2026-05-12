@@ -43,6 +43,7 @@ public class WorldSimulation : MonoBehaviour
     int kernelSetCellIdx = -1;
     int kernelCopyCellIdx = -1;
     int kernelCopyGenomeIdx = -1;
+    int kernelCopyCommandIdx = -1;
 
     uint[] stats;
 
@@ -54,6 +55,7 @@ public class WorldSimulation : MonoBehaviour
     // small single-item buffers for readback
     ComputeBuffer singleCellBuffer;
     ComputeBuffer singleGenomeBuffer;
+    ComputeBuffer singleCommandbuffer;
 
     bool organicsScheduled = false;
     bool energyScheduled = false;
@@ -190,6 +192,7 @@ public class WorldSimulation : MonoBehaviour
         // create single-element readback buffers and bind copy kernels
         singleCellBuffer = new ComputeBuffer(1, System.Runtime.InteropServices.Marshal.SizeOf(typeof(CellData)));
         singleGenomeBuffer = new ComputeBuffer(1, System.Runtime.InteropServices.Marshal.SizeOf(typeof(GenomeData)));
+        singleCommandbuffer = new ComputeBuffer(1, System.Runtime.InteropServices.Marshal.SizeOf(typeof(CommandEntry)));
         try {
             kernelCopyCellIdx = mutationShader.FindKernel("CopyCellKernel");
             mutationShader.SetBuffer(kernelCopyCellIdx, "_SingleCellOut", singleCellBuffer);
@@ -198,6 +201,10 @@ public class WorldSimulation : MonoBehaviour
             kernelCopyGenomeIdx = mutationShader.FindKernel("CopyGenomeKernel");
             mutationShader.SetBuffer(kernelCopyGenomeIdx, "_SingleGenomeOut", singleGenomeBuffer);
         } catch { kernelCopyGenomeIdx = -1; }
+        try {
+            kernelCopyCommandIdx = mutationShader.FindKernel("CopyCommandKernel");
+            mutationShader.SetBuffer(kernelCopyCommandIdx, "_SingleCommandOut", singleCommandbuffer);
+        } catch { kernelCopyCommandIdx = -1; }
     }
 
     public void InitWorld()
@@ -483,6 +490,42 @@ public class WorldSimulation : MonoBehaviour
                 var genome = gArr[0];
                 onComplete?.Invoke(cell, genome);
             });
+        });
+    }
+
+    public void RequestCommand(int x, int y, Action<CommandEntry> onComplete)
+    {
+        int idx = y * SimParams._Width + x;
+        int total = SimParams._Width * SimParams._Height;
+        if (idx < 0 || idx >= total) {
+            Debug.LogWarning($"RequestCommand: coords out of range ({x},{y})");
+            onComplete?.Invoke(default);
+            return;
+        }
+        // Use small one-element buffers and copy kernels to avoid allocating/reading entire buffers
+        if (kernelCopyCommandIdx < 0) {
+            Debug.LogError("CopyCommandKernel not available in mutationShader");
+            onComplete?.Invoke(default);
+            return;
+        }
+
+        // set requested index and dispatch copy kernel
+        mutationShader.SetInt("_RequestedCommandIdx", idx);
+        mutationShader.Dispatch(kernelCopyCommandIdx, 1, 1, 1);
+
+        // read back single cell buffer
+        AsyncGPUReadback.Request(singleCommandbuffer, (AsyncGPUReadbackRequest req) =>
+        {
+            if (req.hasError) {
+                Debug.LogError("Ошибка чтения команды с GPU");
+                onComplete?.Invoke(default);
+                return;
+            }
+
+            var cellArr = req.GetData<CommandEntry>();
+            var cell = cellArr[0];
+
+            onComplete?.Invoke(cell);
         });
     }
 

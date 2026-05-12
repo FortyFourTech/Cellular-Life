@@ -46,11 +46,14 @@ public class SimulationUI : MonoBehaviour
     bool haveInspectedCell = false;
     CellData inspectedCell;
     GenomeData inspectedGenome;
+    CommandEntry inspectedCommand;
     string genomeReadError = "";
     // optional pan/zoom helper
     RawImage panRawImage;
 
     SimParams _simParams;
+    private static readonly uint[] commandLookupSingle = {1,2,3,4,5,6,7,8,9,10};
+    private static readonly uint[] commandLookupCommon = {1,2,6,11,12,13,14,15,16,17,18,19,20};
 
     void Reset()
     {
@@ -253,6 +256,10 @@ public class SimulationUI : MonoBehaviour
 
         GUILayout.Label($"Grid: {gx}, {gy}");
 
+        ReadCommandFromGpu(gx, gy);
+        GUILayout.Label($"Last cell command: [{inspectedCommand.commandId}]({inspectedCommand.successGene},{inspectedCommand.failGene})");
+        GUILayout.Space(6);
+
         // read cell from GPU
         ReadCellFromGpu(gx, gy);
 
@@ -323,8 +330,11 @@ public class SimulationUI : MonoBehaviour
                 uint cond2Raw = GetByte(g.conditions, 1) % 26u;
                 var cond2String = cond2Raw >= 13 ? "- " : $"{cond2Raw}";
 
-                uint cr0 = GetByte(isSingle ? g.aloneCommands : g.condResult, 0) % (isSingle ? 20u : 26u);
-                uint cr1 = GetByte(isSingle ? g.aloneCommands : g.condResult, 1) % (isSingle ? 20u : 26u);
+                uint commandNum = isSingle ? 10u : 13u;
+                uint cr0 = GetByte(isSingle ? g.aloneCommands : g.condResult, 0) % (commandNum * 2);
+                string cr0String = cr0 >= commandNum ? "- " : (isSingle ? $"{commandLookupSingle[cr0]}" : $"{commandLookupCommon[cr0]}");
+                uint cr1 = GetByte(isSingle ? g.aloneCommands : g.condResult, 1) % (commandNum * 2);
+                string cr1String = cr1 >= commandNum ? "- " : (isSingle ? $"{commandLookupSingle[cr1]}" : $"{commandLookupCommon[cr1]}");
                 uint gr0 = GetByte(g.condResult, 2) % 32u;
                 uint gr1 = GetByte(g.condResult, 3) % 32u;
 
@@ -339,7 +349,7 @@ public class SimulationUI : MonoBehaviour
                 sb.AppendFormat("{0}{1:00}: {2}{3}{4}{5} | {6}({7:F1}), {8}({9:F1}) | [{10}|{14},{15}], [{11}|{16},{17}] | {12}, {13}\n",
                     activeMark, i, grow0, grow1, grow2, grow3,
                     cond1String, g.condParam1, cond2String, g.condParam2,
-                    cr0, cr1, gr0, gr1,
+                    cr0String, cr1String, gr0, gr1,
                     cg1, cg2, cg3, cg4
                 );
             }
@@ -468,6 +478,17 @@ public class SimulationUI : MonoBehaviour
         });
         // inspectedCell = world.CellsData[idx];
         return;
+    }
+
+    void ReadCommandFromGpu(int gx, int gy)
+    {
+        if (world == null) return;
+        int idx = gy * world.SimParams._Width + gx;
+
+        world.RequestCommand(gx, gy, (command) =>
+        {
+            inspectedCommand = command;
+        });
     }
 
     void Generate()

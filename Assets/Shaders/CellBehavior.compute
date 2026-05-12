@@ -566,7 +566,7 @@ void Cmd_##ID(uint3 dtid : SV_DispatchThreadID) \
     /* update active gene based on result */ \
     _Cells[cellIdx].activeGene = (res ? ce.successGene : ce.failGene) % GENES_NUM; \
  \
-    _CommandBuffer[cellIdx] = (CommandEntry)0; \
+    /* _CommandBuffer[cellIdx] = (CommandEntry)0; */ \
 }
 
 // Instantiate kernels for command IDs 0..19
