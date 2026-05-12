@@ -22,3 +22,4 @@ RWTexture2D<float2> _SoilTexRead;// x=organics, y=soilEnergy
 RWTexture2D<float2> _SoilTexWrite; // x=organics, y=soilEnergy
 RWStructuredBuffer<Cell> _Cells;
 RWStructuredBuffer<Genome> _Genomes; // packed genomes
+RWStructuredBuffer<CommandEntry> _CommandBuffer;

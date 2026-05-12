@@ -21,6 +21,7 @@
 #pragma kernel Cmd_18
 #pragma kernel Cmd_19
 #pragma kernel Cmd_20
+#pragma kernel Cmd_21
 
 #include "Defines.hlsl"
 #include "CommonParams.hlsl"
@@ -32,14 +33,9 @@
 // _Width;
 // _Height;
 
-// Command buffer shared between decision kernel and per-command kernels
-static const uint CMD_SET_ACTIVE_ONLY = 0xFFFFFFFFu;
-
 static const uint COND_NUM = 13u;
 static const uint COMM_NUM = 13u;
 static const uint SINGLE_COMM_NUM = 10u;
-
-RWStructuredBuffer<CommandEntry> _CommandBuffer;
 
 #include "Common.hlsl"
 
@@ -503,7 +499,7 @@ void DecisionKernel(uint3 dtid : SV_DispatchThreadID)
     if (check) {
         uint tmp = UnpackInt1(isSingle ? gene.aloneCommands : gene.condResult) % (commNum * 2u);
         if (tmp >= commNum) {
-            outEntry.commandId = CMD_SET_ACTIVE_ONLY;
+            outEntry.commandId = CMD_SET_FAIL_GENE;
             outEntry.failGene = UnpackInt3(gene.condResult) % GENES_NUM;
         } else {
             outEntry.commandId = isSingle ? commandLookupSingle[tmp] : commandLookupCommon[tmp];
@@ -513,7 +509,7 @@ void DecisionKernel(uint3 dtid : SV_DispatchThreadID)
     } else {
         uint tmp = UnpackInt2(isSingle ? gene.aloneCommands : gene.condResult) % (commNum * 2u);
         if (tmp >= commNum) {
-            outEntry.commandId = CMD_SET_ACTIVE_ONLY;
+            outEntry.commandId = CMD_SET_FAIL_GENE;
             outEntry.failGene = UnpackInt4(gene.condResult) % GENES_NUM;
         } else {
             outEntry.commandId = isSingle ? commandLookupSingle[tmp] : commandLookupCommon[tmp];
@@ -542,26 +538,26 @@ void Cmd_##ID(uint3 dtid : SV_DispatchThreadID) \
     bool res = false; \
     /* call the relevant command by ID */ \
     /* map IDs to functions */ \
-    if ((ID) == 1u) { res = CommandSkip(cellPos); } \
-    else if ((ID) == 2u) { res = CommandGrow(cellPos); } \
-    else if ((ID) == 3u) { res = CommandMove(cellPos); } \
-    else if ((ID) == 4u) { res = CommandRotate(cellPos, DIR_R); } \
-    else if ((ID) == 5u) { res = CommandRotate(cellPos, DIR_L); } \
-    else if ((ID) == 6u) { res = CommandBecomeSeed(cellPos); } \
-    else if ((ID) == 7u) { res = CommandEatCell(cellPos); } \
-    else if ((ID) == 8u) { res = CommandAttach(cellPos); } \
-    else if ((ID) == 9u) { res = CommandExtractOrganics(cellPos); } \
-    else if ((ID) == 10u) { res = CommandExtractEnergy(cellPos); } \
-    else if ((ID) == 11u) { res = CommandSeparate(cellPos); } \
-    else if ((ID) == 12u) { res = CommandMoveOrganics(cellPos, DIR_R); } \
-    else if ((ID) == 13u) { res = CommandMoveOrganics(cellPos, DIR_F); } \
-    else if ((ID) == 14u) { res = CommandMoveOrganics(cellPos, DIR_L); } \
-    else if ((ID) == 15u) { res = CommandMoveEnergy(cellPos, DIR_R); } \
-    else if ((ID) == 16u) { res = CommandMoveEnergy(cellPos, DIR_F); } \
-    else if ((ID) == 17u) { res = CommandMoveEnergy(cellPos, DIR_L); } \
-    else if ((ID) == 18u) { res = CommandDie(cellPos); } \
-    else if ((ID) == 19u) { res = CommandSendSeed(cellPos, SPEED_SLOW); } \
-    else if ((ID) == 20u) { res = CommandSpitEnergy(cellPos); } \
+    if ((ID) == 2u) { res = CommandSkip(cellPos); } \
+    else if ((ID) == 3u) { res = CommandGrow(cellPos); } \
+    else if ((ID) == 4u) { res = CommandMove(cellPos); } \
+    else if ((ID) == 5u) { res = CommandRotate(cellPos, DIR_R); } \
+    else if ((ID) == 6u) { res = CommandRotate(cellPos, DIR_L); } \
+    else if ((ID) == 7u) { res = CommandBecomeSeed(cellPos); } \
+    else if ((ID) == 8u) { res = CommandEatCell(cellPos); } \
+    else if ((ID) == 9u) { res = CommandAttach(cellPos); } \
+    else if ((ID) == 10u) { res = CommandExtractOrganics(cellPos); } \
+    else if ((ID) == 11u) { res = CommandExtractEnergy(cellPos); } \
+    else if ((ID) == 12u) { res = CommandSeparate(cellPos); } \
+    else if ((ID) == 13u) { res = CommandMoveOrganics(cellPos, DIR_R); } \
+    else if ((ID) == 14u) { res = CommandMoveOrganics(cellPos, DIR_F); } \
+    else if ((ID) == 15u) { res = CommandMoveOrganics(cellPos, DIR_L); } \
+    else if ((ID) == 16u) { res = CommandMoveEnergy(cellPos, DIR_R); } \
+    else if ((ID) == 17u) { res = CommandMoveEnergy(cellPos, DIR_F); } \
+    else if ((ID) == 18u) { res = CommandMoveEnergy(cellPos, DIR_L); } \
+    else if ((ID) == 19u) { res = CommandDie(cellPos); } \
+    else if ((ID) == 20u) { res = CommandSendSeed(cellPos, SPEED_SLOW); } \
+    else if ((ID) == 21u) { res = CommandSpitEnergy(cellPos); } \
  \
     /* update active gene based on result */ \
     _Cells[cellIdx].activeGene = (res ? ce.successGene : ce.failGene) % GENES_NUM; \
@@ -590,6 +586,7 @@ DECL_CMD_KERNEL(17)
 DECL_CMD_KERNEL(18)
 DECL_CMD_KERNEL(19)
 DECL_CMD_KERNEL(20)
+DECL_CMD_KERNEL(21)
 
 // Kernel to apply set-active-only entries
 // [numthreads(8,8,1)]
