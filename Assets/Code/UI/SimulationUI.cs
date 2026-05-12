@@ -37,9 +37,6 @@ public class SimulationUI : MonoBehaviour
     public int mutationChanges = 1;
     public bool mutationIncremental = true;
 
-    // Genome input (simple text field)
-    public string genomeInput = "";
-
     // Internal
     Vector2 scroll;
     float lastUpdateTime;
@@ -173,7 +170,7 @@ public class SimulationUI : MonoBehaviour
         GUILayout.Label($"Sunlight: {_simParams._Sunlight:F2}");
         _simParams._Sunlight = GUILayout.HorizontalSlider(_simParams._Sunlight, 0f, 10f);
         GUILayout.Label($"Diffusion Rate: {_simParams._DiffusionRate:F2}");
-        _simParams._DiffusionRate = GUILayout.HorizontalSlider(_simParams._DiffusionRate, 0f, 10f);
+        _simParams._DiffusionRate = GUILayout.HorizontalSlider(_simParams._DiffusionRate, 0f, 1f);
         // GUILayout.Label($"Cell energy cost/tick: {cellEnergyCost:F4}");
         // cellEnergyCost = GUILayout.HorizontalSlider(cellEnergyCost, 0f, 0.1f);
         // if (GUILayout.Button("Apply World Params")) ApplySimParameters();
@@ -229,7 +226,7 @@ public class SimulationUI : MonoBehaviour
     void DrawCellInspectorPanel()
     {
         const float pad = 8f;
-        float inspectorW = 350f;
+        float inspectorW = 400f;
         Rect area = new Rect(Screen.width - pad - inspectorW, pad, inspectorW, Screen.height - pad*2);
         GUILayout.BeginArea(area, GUI.skin.box);
         // GUILayout.Label("Cell Inspector", GUI.skin.label);
@@ -296,11 +293,11 @@ public class SimulationUI : MonoBehaviour
             // GUILayout.Label($"                              {inspectedGene.GetGrowCellTypeString(2)}"); // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
 
             // var cond1 = GetByte(inspectedGene.conditions, 0) % 26;
-            // var cond1String = cond1 >= 13 ? "-" : $"{cond1}";
-            // GUILayout.Label($"condition 1: {cond1String} ({inspectedGene.condParam1}) (raw: {GetByte(inspectedGene.conditions, 0)})");
+            // var cond1String1 = cond1 >= 13 ? "-" : $"{cond1}";
+            // GUILayout.Label($"condition 1: {cond1String1} ({inspectedGene.condParam1}) (raw: {GetByte(inspectedGene.conditions, 0)})");
             // var cond2 = GetByte(inspectedGene.conditions, 1) % 26;
-            // var cond2String = cond2 >= 13 ? "-" : $"{cond2}";
-            // GUILayout.Label($"condition 2: {cond2String} ({inspectedGene.condParam2}) (raw: {GetByte(inspectedGene.conditions, 1)})");
+            // var cond2String1 = cond2 >= 13 ? "-" : $"{cond2}";
+            // GUILayout.Label($"condition 2: {cond2String1} ({inspectedGene.condParam2}) (raw: {GetByte(inspectedGene.conditions, 1)})");
 
             // GUILayout.Label($"condResult: com1[{GetByte(inspectedGene.condResult,0)%26}] com2[{GetByte(inspectedGene.condResult, 1)%26}] gene1[{GetByte(inspectedGene.condResult, 2)%32}] gene2[{GetByte(inspectedGene.condResult, 3)%32}]"); // two commands in two first bites: 0 - command for success, 1 - command for fail, 2 - gene for success, 3 - gene for fail
             // GUILayout.Label($"comGenes: com1Success[{GetByte(inspectedGene.comGenes,0)%32}] com1fail[{GetByte(inspectedGene.comGenes, 1)%32}] com2Success[{GetByte(inspectedGene.comGenes, 2)%32}] com2fail[{GetByte(inspectedGene.comGenes, 3)%32}]"); // gene indicies: 0 - for first command success, 1 - for first command fail, 2 - for second command success, 3 - for second command fail
@@ -327,13 +324,20 @@ public class SimulationUI : MonoBehaviour
                 uint gr0 = GetByte(g.condResult, 2) % 32u;
                 uint gr1 = GetByte(g.condResult, 3) % 32u;
 
+                uint cg1 = GetByte(g.comGenes, 0) % 32u;
+                uint cg2 = GetByte(g.comGenes, 1) % 32u;
+                uint cg3 = GetByte(g.comGenes, 2) % 32u;
+                uint cg4 = GetByte(g.comGenes, 3) % 32u;
+
                 string activeMark = (i == inspectedCell.activeGene) ? "<color=green>" : "<color=white>";
 
                 // Compact one-line representation per gene
-                sb.AppendFormat("{0}{1:00}: {2}{3}{4}{5} | {6}({7:F1}), {8}({9:F1}) | c:{10}, {11} g:{12}, {13}\n",
+                sb.AppendFormat("{0}{1:00}: {2}{3}{4}{5} | {6}({7:F1}), {8}({9:F1}) | [{10}|{14},{15}], [{11}|{16},{17}] | {12}, {13}\n",
                     activeMark, i, grow0, grow1, grow2, grow3,
                     cond1String, g.condParam1, cond2String, g.condParam2,
-                    cr0, cr1, gr0, gr1);
+                    cr0, cr1, gr0, gr1,
+                    cg1, cg2, cg3, cg4
+                );
             }
 
             // GUILayout.Label($"Genes:");
@@ -498,12 +502,6 @@ public class SimulationUI : MonoBehaviour
         world.SimParams._DiffusionRate = _simParams._DiffusionRate;
         // _simParams._CriticalOrg;
         // _simParams._CriticalNrg;
-    }
-
-    void CreateSeedFromGenome()
-    {
-        // stub: parse genomeInput and enqueue creation of a seed cell with this genome
-        Debug.Log("CreateSeedFromGenome: stub - parsed input: " + genomeInput);
     }
 
     void ApplyBrushAtScreenPosition(Vector2 screenPos)

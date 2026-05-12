@@ -231,13 +231,13 @@ public class WorldSimulation : MonoBehaviour
 
     public void PopulateWorld()
     {
-        int cx = Mathf.CeilToInt(SimParams._Width / (32 * 8));
-        int cy = Mathf.CeilToInt(SimParams._Height / (32 * 8));
+        int cx = Mathf.CeilToInt(SimParams._Width / 32);
+        int cy = Mathf.CeilToInt(SimParams._Height / 32);
         UpdateTimestamp();
 
         // init starting cells
         int cellsKernelIdx = initShader.FindKernel("InitCells");
-        initShader.SetInt("_CellRowCount", cx * 8);
+        initShader.SetInt("_CellRowCount", cx);
         initShader.Dispatch(cellsKernelIdx, cx, cy, 1);
 
         // get data (stats only). Avoid full-buffer readbacks here because they are
