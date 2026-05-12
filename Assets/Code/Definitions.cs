@@ -15,6 +15,14 @@ public struct CellData
     public uint seedProps; // bytes 0,1 - speed; 2,3 - timer
 }
 
+public struct CellInfo {
+    public CellData cell;
+    public float soilOrg;
+    public float soilNrg;
+    uint pad0;
+    uint pad1;
+}
+
 public struct Gene {
     public uint growDirections; // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
     public uint conditions; // two conditions in two first bites

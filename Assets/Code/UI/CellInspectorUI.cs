@@ -43,28 +43,29 @@ public class CellInspectorUI : MonoBehaviour
         // request cell+genome asynchronously from the world (same helper used in SimulationUI)
         world.RequestCellAndGenome(gx, gy, (cell, genome) =>
         {
-            bool have = cell.cellType > 0;
+            var inspectedCell = cell.cell;
+            bool have = inspectedCell.cellType > 0;
             if (!have)
             {
                 SetInactive();
                 return;
             }
 
-            cellTypeLabel.text = $"cellType: {cell.cellType.Symbol()} ({cell.cellType})";
-            energyLabel.text = $"energy: {cell.energy:F4}";
-            energyFlowLabel.text = $"energyFlow: {cell.energyFlow}";
-            parentDirLabel.text = $"parentDir: {cell.parentDir}";
-            genomeIdLabel.text = $"genomeId: {cell.genomeId}";
-            directionLabel.text = $"direction: {cell.direction}";
-            activeGeneLabel.text = $"activeGene: {cell.activeGene}";
-            if (cell.cellType == CellType.Seed)
+            cellTypeLabel.text = $"cellType: {inspectedCell.cellType.Symbol()} ({inspectedCell.cellType})";
+            energyLabel.text = $"energy: {inspectedCell.energy:F4}";
+            energyFlowLabel.text = $"energyFlow: {inspectedCell.energyFlow}";
+            parentDirLabel.text = $"parentDir: {inspectedCell.parentDir}";
+            genomeIdLabel.text = $"genomeId: {inspectedCell.genomeId}";
+            directionLabel.text = $"direction: {inspectedCell.direction}";
+            activeGeneLabel.text = $"activeGene: {inspectedCell.activeGene}";
+            if (inspectedCell.cellType == CellType.Seed)
             {
-                seedPropsLabel.text = $"seed timer: {GetByte(cell.seedProps,0)}  speed: {GetByte(cell.seedProps,2)}";
+                seedPropsLabel.text = $"seed timer: {GetByte(inspectedCell.seedProps,0)}  speed: {GetByte(inspectedCell.seedProps,2)}";
             }
 
             if (genomeInspector != null)
             {
-                genomeInspector.SetGenome(genome, cell.activeGene);
+                genomeInspector.SetGenome(genome, inspectedCell.activeGene);
             }
         });
     }

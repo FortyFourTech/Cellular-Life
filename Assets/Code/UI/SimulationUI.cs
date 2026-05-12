@@ -45,6 +45,7 @@ public class SimulationUI : MonoBehaviour
     bool inspectorEnabled = true;
     bool haveInspectedCell = false;
     CellData inspectedCell;
+    Vector2 inspectedSoil;
     GenomeData inspectedGenome;
     CommandEntry inspectedCommand;
     string genomeReadError = "";
@@ -255,6 +256,7 @@ public class SimulationUI : MonoBehaviour
         }
 
         GUILayout.Label($"Grid: {gx}, {gy}");
+        GUILayout.Label($"Soil [{inspectedSoil.x};{inspectedSoil.y}]");
 
         ReadCommandFromGpu(gx, gy);
         GUILayout.Label($"Last cell command: [{inspectedCommand.commandId}]({inspectedCommand.successGene},{inspectedCommand.failGene})");
@@ -470,7 +472,9 @@ public class SimulationUI : MonoBehaviour
 
         world.RequestCellAndGenome(gx, gy, (cell, genome) =>
         {
-            inspectedCell = cell;
+            inspectedCell = cell.cell;
+            inspectedSoil.x = cell.soilOrg;
+            inspectedSoil.y = cell.soilNrg;
             inspectedGenome = genome;
             haveInspectedCell = inspectedCell.cellType > 0;
             if (haveInspectedCell)

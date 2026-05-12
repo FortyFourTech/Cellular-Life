@@ -43,6 +43,12 @@ struct Cell {
     uint seedProps; // bytes 0 - speed; 2 - timer
 };
 
+struct CellInfo {
+    Cell cell;
+    float2 soil;
+    uint2 pad01;
+};
+
 struct Gene {
     uint growDirections; // bites with types in relative direction: 0 - forward, 1 - right, 2 - back, 3 - left
     uint conditions; // two conditions in two first bites

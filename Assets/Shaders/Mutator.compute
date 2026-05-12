@@ -35,7 +35,7 @@ RWStructuredBuffer<ResourceDelta> _EnergyDeltas;
 RWStructuredBuffer<KillCoord> _KillList;
 RWStructuredBuffer<SetCell> _SetList;
 
-RWStructuredBuffer<Cell> _SingleCellOut;
+RWStructuredBuffer<CellInfo> _SingleCellOut;
 RWStructuredBuffer<Genome> _SingleGenomeOut;
 RWStructuredBuffer<CommandEntry> _SingleCommandOut;
 
@@ -117,7 +117,8 @@ void CopyCellKernel(uint3 id : SV_DispatchThreadID)
 {
     uint idx = _RequestedCellIdx;
     if (idx >= _Width * _Height) return;
-    _SingleCellOut[0] = _Cells[idx];
+    _SingleCellOut[0].cell = _Cells[idx];
+    _SingleCellOut[0].soil = _SoilTexRead[IdxToPos(idx)];
 }
 
 // Copy a single genome from _Genomes[_RequestedGenomeIdx] into _SingleGenomeOut[0]
