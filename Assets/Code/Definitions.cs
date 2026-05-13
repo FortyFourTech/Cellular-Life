@@ -2,6 +2,14 @@
 using System;
 
 public enum CellType : uint { Empty, Leaf, Root, Antenna, Wood, Sprout, Seed };
+public enum Direction : uint { Forward, Right, Back, Left };
+[Flags]
+public enum DirectionFlags : uint {
+    Forward = 1 << 0,
+    Right = 1 << 1,
+    Back = 1 << 2,
+    Left = 1 << 3
+};
 
 public struct CellData
 {
@@ -86,6 +94,26 @@ public static class CellTypeExtension
         CellType.Seed => "🟡",
         _ => "[-]",
     };
+}
+
+public static class DirectionExtension {
+    public static string Symbol(this Direction direction) => direction switch {
+        Direction.Forward => "↑",
+        Direction.Right => "→",
+        Direction.Back => "↓",
+        Direction.Left => "←",
+        _ => "[-]",
+    };
+
+    public static string Symbol(this DirectionFlags direction) {
+        string result = "";
+        if ((direction & DirectionFlags.Left) != 0) result += "←";
+        if ((direction & DirectionFlags.Forward) != 0) result += "↑";
+        if ((direction & DirectionFlags.Back) != 0) result += "↓";
+        if ((direction & DirectionFlags.Right) != 0) result += "→";
+        if (string.IsNullOrEmpty(result)) result = "[-]";
+        return result;
+    }
 }
 
 [Serializable]
