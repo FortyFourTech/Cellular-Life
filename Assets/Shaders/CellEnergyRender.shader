@@ -23,7 +23,7 @@ Shader "Simulation/CellEnergy"
             int _Height;
             float _UpperBound;
 
-            StructuredBuffer<Cell> _Cells;
+            StructuredBuffer<Cell> _CellsRO;
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
             struct v2f { float2 uv : TEXCOORD0; float4 vertex : SV_POSITION; };
@@ -37,7 +37,7 @@ Shader "Simulation/CellEnergy"
                 float2 pixelPos = floor(i.uv * float2(_Width, _Height));
                 uint cellIdx = (uint)pixelPos.y * (uint)_Width + (uint)pixelPos.x;
                 // uint cellIdx = floor(i.uv.y * _Height * _Width) + floor(i.uv.x * _Width);
-                Cell c = _Cells[cellIdx];
+                Cell c = _CellsRO[cellIdx];
                 float energyVal = c.cellType > 0 ? c.energy : 0;
                 energyVal /= _UpperBound;
 

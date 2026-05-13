@@ -46,7 +46,7 @@ Shader "Simulation/World"
             float _ShowOrganics;
             float _ShowEnergy;
 
-            StructuredBuffer<Cell> _Cells;
+            StructuredBuffer<Cell> _CellsRO;
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
             struct v2f { float2 uv : TEXCOORD0; float4 vertex : SV_POSITION; };
@@ -67,15 +67,17 @@ Shader "Simulation/World"
                 fixed4 col = fixed4(max(colOrg, colEn), 1);
 
                 // highlight if organics exceed threshold
-                uint cellIdx = floor(i.uv.y * _Height * _Width) + floor(i.uv.x * _Width);
-                Cell c = _Cells[cellIdx];
+                float2 pixelPos = floor(i.uv * float2(_Width, _Height));
+                uint cellIdx = (uint)pixelPos.y * (uint)_Width + (uint)pixelPos.x;
+                // uint cellIdx = floor(i.uv.y * _Height * _Width) + floor(i.uv.x * _Width);
+                Cell c = _CellsRO[cellIdx];
                 uint cellType = c.cellType;
-                if (cellType == 1) col = _LeafColor; // leaf green
-                if (cellType == 2) col = _RootColor; // root red
-                if (cellType == 3) col = _AntennaColor; // antenna blue
-                if (cellType == 4) col = _WoodColor; // wood grey
-                if (cellType == 5) col = _SproutColor; // sprout
-                if (cellType == 6) col = _SeedColor; // seed
+                if (cellType == CELLTYPE_LEAF) col = _LeafColor; // leaf green
+                if (cellType == CELLTYPE_ROOT) col = _RootColor; // root red
+                if (cellType == CELLTYPE_ANTENNA) col = _AntennaColor; // antenna blue
+                if (cellType == CELLTYPE_WOOD) col = _WoodColor; // wood grey
+                if (cellType == CELLTYPE_SPROUT) col = _SproutColor; // sprout
+                if (cellType == CELLTYPE_SEED) col = _SeedColor; // seed
                 // return float4(1,0,0,1);
                 float2 cellCenter = float2(
                     ceil(i.uv.x * _Width) / _Width,

@@ -1,8 +1,4 @@
-// Simulation.compute
-// Basic compute kernels for iteration 0 (skeleton implementations).
-
 #pragma kernel DiffuseEnergyKernel
-#pragma kernel ApplySoilChange
 #pragma kernel LeafKernel
 #pragma kernel RootKernel
 #pragma kernel AntennaKernel
@@ -10,8 +6,8 @@
 #pragma kernel TransportKernel
 #pragma kernel AbsorptionKernel
 #pragma kernel DeathKernel
+#pragma kernel KillKernel
 #pragma kernel SeedKernel
-// #pragma kernel BehaviorKernel
 #pragma kernel StatsKernel
 
 #include "Defines.hlsl"
@@ -25,44 +21,23 @@ RWStructuredBuffer<uint> _Stats; // small stats buffer
 [numthreads(8,8,1)]
 void DiffuseEnergyKernel(uint3 id : SV_DispatchThreadID)
 {
-    int2 pos = int2(id.x, id.y);
-    if (pos.x >= _Width || pos.y >= _Height) return;
+    uint2 cellPos = id.xy;
+    if (cellPos.x >= _Width || cellPos.y >= _Height) return;
 
-    float2 cur = _SoilTexRead[pos];
+    float2 cur = _SoilTexRW[cellPos];
     // float2 next = lerp(cur, avg, saturate(_DiffusionRate));
     // next.x = cur.x;
 
-    float2 next = float2(cur.x, lerp(cur.y, 1.0, _DiffusionRate * _Timestep));
-    _SoilTexWrite[pos] = next;
+    float2 next = float2(cur.x, lerp(cur.y, _Sunlight, _DiffusionRate * _Timestep));
+    _SoilTexRW[cellPos] = next;
 }
-
-[numthreads(8,8,1)]
-void ApplySoilChange(uint3 id: SV_DispatchThreadID)
-{
-    _SoilTexRead[id.xy] = _SoilTexWrite[id.xy];
-}
-
-// [numthreads(8,8,1)]
-// void ApplyCellChange(uint3 id: SV_DispatchThreadID)
-// {
-//     uint cellIdx = PosToIdx(id.xy);
-//     _CellsRead[cellIdx] = _CellsWrite[cellIdx];
-// }
-
-// [numthreads(8,8,1)]
-// void ApplyCellEnergyChange(uint3 id: SV_DispatchThreadID)
-// {
-//     uint cellIdx = PosToIdx(id.xy);
-//     _Cells[cellIdx].energy += _EnergyDeltas[cellIdx];
-//     _EnergyDeltas[cellIdx] = 0.0;
-// }
 
 [numthreads(8,8,1)]
 void LeafKernel(uint3 id : SV_DispatchThreadID)
 {
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _Cells[cellIdx];
+    Cell cell = _CellsRW[cellIdx];
     if (cell.cellType != CELLTYPE_LEAF) return; // only leaves
 
     float organicsLocal = 0.0;
@@ -72,18 +47,18 @@ void LeafKernel(uint3 id : SV_DispatchThreadID)
     for (int dx = -1; dx <= 1; ++dx) {
         for (int dy = -1; dy <= 1; ++dy) {
             uint2 coord = (cellPos + uint2(dx,dy) + mapSize) % mapSize;
-            float2 soil = _SoilTexRead[coord];
+            float2 soil = _SoilTexRO[coord];
             organicsLocal += soil.x * (dx == 0 && dy == 0);
             organicsNeighbors += soil.x * (1 - (dx == 0 && dy == 0));
             // uint coordIdx = PosToIdx(coord);
-            // freeSpace += _Cells[coordIdx].cellType == 0; // TODO: consider free space around the leaf
+            // freeSpace += _CellsRO[coordIdx].cellType == 0; // TODO: consider free space around the leaf
         }
     }
     float organicsAround = organicsLocal + (organicsNeighbors * 0.125);
     float produced = organicsAround * _Sunlight * _Timestep;
     // float produced = organicsAround * ((float)freeSpace / 7.0) * _Sunlight * _Timestep; // TODO: consider free space around the leaf
     cell.energy += produced * _Timestep;
-    _Cells[cellIdx] = cell;
+    _CellsRW[cellIdx] = cell;
 }
 
 [numthreads(8,8,1)]
@@ -91,29 +66,42 @@ void RootKernel(uint3 id : SV_DispatchThreadID)
 {
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
-    uint cellType = _Cells[cellIdx].cellType;
-    if (cellType != CELLTYPE_ROOT) return; // only roots
+    Cell cell = _CellsRW[cellIdx];
+    uint cellType = cell.cellType;
+    float2 cellSoil = _SoilTexRO[cellPos];
+    // if (cellType != CELLTYPE_ROOT) return; // only roots
 
-    float collectedNrg = 0.0;
+    float cellCollectNrg = 0.0;
+    float soilDepleteOrg = 0.0;
     float localOrganics = 0.0;
-    // uint freeSpace = 0; // TODO: consider free space around the leaf
+    // look at organics around -> add energy to the root in this cell
+    // look at roots around -> deplete organics from this cell
     uint2 mapSize = uint2(_Width,_Height);
     for (int dx = -1; dx <= 1; ++dx) {
         for (int dy = -1; dy <= 1; ++dy) {
-            uint2 coord = (cellPos + uint2(dx,dy) + mapSize) % mapSize;
-            float2 soil = _SoilTexRead[coord];
-            float coordOrganics = soil.x * (dx == 0 && dy == 0 ? 1.0 : 0.125);
-            localOrganics += soil.x * (dx == 0 && dy == 0);
-            float delta = min(coordOrganics, ABSORB_SOIL_ORGANICS * _Timestep);
-            collectedNrg += delta;
-            localOrganics -= delta * (dx == 0 && dy == 0);
-            _SoilTexWrite[coord] = float2(soil.x - delta, soil.y); // deplete organics
+            uint2 neighborPos = (cellPos + uint2(dx,dy) + mapSize) % mapSize;
+            float2 neighborSoil = _SoilTexRO[neighborPos];
+
+            uint neighborIdx = PosToIdx(neighborPos);
+            Cell neighborCell = _CellsRW[neighborIdx];
+
+            float neighborOrganics = neighborSoil.x * (dx == 0 && dy == 0 ? 1.0 : 0.125);
+            localOrganics += neighborSoil.x * (dx == 0 && dy == 0);
+            float cellNrgDelta = min(neighborOrganics, ABSORB_SOIL_ORGANICS * _Timestep);
+            cellCollectNrg += cellNrgDelta;
+            localOrganics -= cellNrgDelta * (dx == 0 && dy == 0);
+
+            float neighborRoots = (neighborCell.cellType == CELLTYPE_ROOT) * (dx == 0 && dy == 0 ? 1.0 : 0.125);
+            float soilOrgDelta = min(neighborRoots, ABSORB_SOIL_ORGANICS * _Timestep);
+            soilDepleteOrg += soilOrgDelta;
         }
     }
 
-    _Cells[cellIdx].energy += collectedNrg;
+    _SoilTexWO[cellPos] = float2(cellSoil.x - soilDepleteOrg, cellSoil.y); // deplete organics
 
-    if (localOrganics <= 0) ConvertToWood(cellPos);
+    if (cellType == CELLTYPE_ROOT && localOrganics <= 0) ConvertToWood(cell);
+    cell.energy += cellCollectNrg * (cellType == CELLTYPE_ROOT);
+    _CellsRW[cellIdx] = cell;
 }
 
 [numthreads(8,8,1)]
@@ -121,45 +109,68 @@ void AntennaKernel(uint3 id : SV_DispatchThreadID)
 {
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
-    uint cellType = _Cells[cellIdx].cellType;
-    if (cellType != CELLTYPE_ANTENNA) return; // only antennas
+    Cell cell = _CellsRW[cellIdx];
+    uint cellType = cell.cellType;
+    float2 cellSoil = _SoilTexRO[cellPos];
+    // if (cellType != CELLTYPE_ANTENNA) return; // only antennas
 
-    float collectedNrg = 0.0;
+    float cellCollectNrg = 0.0;
+    float soilDepleteNrg = 0.0;
     float localEnergy = 0.0;
-    // uint freeSpace = 0; // TODO: consider free space around the leaf
+    // look at energy around -> add energy to the antenna in this cell
+    // look at roots around -> deplete energy from this cell
     uint2 mapSize = uint2(_Width,_Height);
     for (int dx = -1; dx <= 1; ++dx) {
         for (int dy = -1; dy <= 1; ++dy) {
-            uint2 coord = (cellPos + uint2(dx,dy) + mapSize) % mapSize;
-            float2 soil = _SoilTexRead[coord];
-            float coordEnergy = soil.y * (dx == 0 && dy == 0 ? 1.0 : 0.125);
-            localEnergy += soil.y * (dx == 0 && dy == 0);
-            float delta = min(coordEnergy, ABSORB_SOIL_ORGANICS * _Timestep);
-            collectedNrg += delta;
-            localEnergy -= delta * (dx == 0 && dy == 0);
-            _SoilTexWrite[coord] = float2(soil.x, soil.y - delta); // deplete energy
+            uint2 neighborPos = (cellPos + uint2(dx,dy) + mapSize) % mapSize;
+            float2 neighborSoil = _SoilTexRO[neighborPos];
+
+            uint neighborIdx = PosToIdx(neighborPos);
+            Cell neighborCell = _CellsRW[neighborIdx];
+
+            float neighborNrg = neighborSoil.y * (dx == 0 && dy == 0 ? 1.0 : 0.125);
+            localEnergy += neighborSoil.y * (dx == 0 && dy == 0);
+            float cellNrgDelta = min(neighborNrg, ABSORB_SOIL_ORGANICS * _Timestep);
+            cellCollectNrg += cellNrgDelta;
+            localEnergy -= cellNrgDelta * (dx == 0 && dy == 0);
+
+            float neighborRoots = (neighborCell.cellType == CELLTYPE_ANTENNA) * (dx == 0 && dy == 0 ? 1.0 : 0.125);
+            float soilNrgDelta = min(neighborRoots, ABSORB_SOIL_ENERGY * _Timestep);
+            soilDepleteNrg += soilNrgDelta;
         }
     }
 
-    _Cells[cellIdx].energy += collectedNrg;
+    _SoilTexWO[cellPos] = float2(cellSoil.x, cellSoil.y - soilDepleteNrg); // deplete energy
 
-    if (localEnergy <= 0) ConvertToWood(cellPos);
+    if (cellType == CELLTYPE_ANTENNA && localEnergy <= 0) ConvertToWood(cell);
+    cell.energy += cellCollectNrg * (cellType == CELLTYPE_ANTENNA);
+    _CellsRW[cellIdx] = cell;
 }
 
 [numthreads(8,8,1)]
 void RerouteKernel(uint3 id : SV_DispatchThreadID)
 {
-    uint cellIdx = PosToIdx(id.xy);
+    uint2 cellPos = id.xy;
+    uint cellIdx = PosToIdx(cellPos);
+    Cell cell = _CellsRO[cellIdx];
 
-    Cell c = _Cells[cellIdx];
-    if (c.cellType != CELLTYPE_WOOD || c.energyFlow > 0 || c.parentDir == 0xffffffff) return; // only wood
-
-    SetIntBit(c.energyFlow, 1, c.parentDir);
-    uint2 parentPos = ShiftCoord(id.xy, c.parentDir);
-    uint parentIdx = PosToIdx(parentPos);
-    SetIntBit(_Cells[parentIdx].energyFlow, 0, RotateDir(c.parentDir, DIR_B));
-
-    _Cells[cellIdx] = c;
+    if (cell.cellType == CELLTYPE_WOOD && cell.energyFlow == 0 && cell.parentDir != 0xffffffff) { // only wood without energy flow but with parent
+        // for self -> enable flow to parent
+        SetIntBit(cell.energyFlow, 1, cell.parentDir);
+    } else if (cell.cellType > 0) {
+        // for parent -> disable flow to wood without flow
+        for (int dir = 0; dir < 4; ++dir) {
+            uint2 neighborPos = ShiftCoord(cellPos, dir);
+            uint neighborIdx = PosToIdx(neighborPos);
+            Cell neighborCell = _CellsRO[neighborIdx];
+            uint neighborFlow = neighborCell.energyFlow;
+            SetIntBit(neighborFlow, 0, RotateDir(dir, DIR_B));
+            if (neighborCell.cellType > 0 && neighborCell.cellType < CELLTYPE_SPROUT && neighborFlow == 0 && neighborCell.parentDir == RotateDir(dir, DIR_B)) {
+                SetIntBit(cell.energyFlow, 0, dir);
+            }
+        }
+    }
+    _CellsWO[cellIdx] = cell;
 }
 
 [numthreads(8,8,1)]
@@ -167,31 +178,48 @@ void TransportKernel(uint3 id : SV_DispatchThreadID)
 {
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
-    uint cellType = _Cells[cellIdx].cellType;
-    if (cellType == 0 || cellType >=  CELLTYPE_SPROUT) return; // only wood and factories transfers energy
+    Cell cell = _CellsRO[cellIdx];
+    uint cellType = _CellsRO[cellIdx].cellType;
+    if (cellType == 0 || cellType >=  CELLTYPE_SEED) return; // only valid cells transfer energy
 
+    // Pull-based transport: each cell attempts to pull energy from neighbors
+    // float sendDelta = 0.0;
+    // float receiveDelta = 0.0;
     for (uint dir = 0; dir < 4; ++dir) {
         uint2 neighborPos = ShiftCoord(cellPos, dir);
         uint neighborIdx = PosToIdx(neighborPos);
-        if (_Cells[neighborIdx].cellType == 0) continue;
+        Cell neighborCell = _CellsRO[neighborIdx];
+        if (neighborCell.cellType == 0) continue;
 
-        float lowerBound = min(_Cells[neighborIdx].energy, 1.0);
-        float transformDelta = GetIntBit(_Cells[cellIdx].energyFlow, dir) * max(_Cells[cellIdx].energy - lowerBound, 0) * TRANSPORT_SPEED * _Timestep;
-        _Cells[cellIdx].energy -= transformDelta;
-        _Cells[neighborIdx].energy += transformDelta;
+        // Check if this cell is willing to send energy toward the neighbor.
+        uint canSend = GetIntBit(cell.energyFlow, dir);
+        float lowerBound = min(cell.energy, 1.0);
+        cell.energy -= canSend * max(cell.energy - lowerBound, 0) * TRANSPORT_SPEED * _Timestep;
+        // sendDelta += canSend * max(cell.energy - lowerBound, 0) * TRANSPORT_SPEED * _Timestep;
+
+        // Check if the neighbor is willing to send energy toward this cell.
+        uint oppDir = RotateDir(dir, DIR_B);
+        uint canReceive = GetIntBit(neighborCell.energyFlow, oppDir);
+
+        lowerBound = min(neighborCell.energy, 1.0);
+        cell.energy += canReceive * max(neighborCell.energy - lowerBound, 0) * TRANSPORT_SPEED * _Timestep;
+        // receiveDelta += canReceive * max(neighborCell.energy - lowerBound, 0) * TRANSPORT_SPEED * _Timestep;
     }
+
+    // cell.energy += receiveDelta - sendDelta;
+    _CellsWO[cellIdx] = cell;
 }
 
 [numthreads(8,8,1)]
 void AbsorptionKernel(uint3 id : SV_DispatchThreadID)
 {
     uint cellIdx = PosToIdx(id.xy);
-    Cell cell = _Cells[cellIdx];
+    Cell cell = _CellsRW[cellIdx];
     if (cell.cellType == 0) return;
 
     float cost = (cell.cellType == CELLTYPE_SEED ? ABSORB_LIFE_ENERGY_SEED : ABSORB_LIFE_ENERGY) * _Timestep;
     cell.energy -= cost;
-    _Cells[cellIdx] = cell;
+    _CellsRW[cellIdx] = cell;
 }
 
 [numthreads(8,8,1)]
@@ -199,35 +227,76 @@ void DeathKernel(uint3 id : SV_DispatchThreadID)
 {
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
-    Cell c = _Cells[cellIdx];
-    uint cellType = c.cellType;
-    float2 soil = _SoilTexRead[cellPos];
-    if (cellType > 0
-        && (c.energy <= 0.0
+    Cell cell = _CellsRO[cellIdx];
+    uint cellType = cell.cellType;
+    float2 soil = _SoilTexRO[cellPos];
+    _KillCells[cellIdx] = cellType > 0
+        && (cell.energy <= 0.0
             || (cellType != CELLTYPE_ROOT && soil.x > _CriticalOrg)
             || (cellType != CELLTYPE_ANTENNA && soil.y > _CriticalNrg)
-            || (cellType < CELLTYPE_SPROUT && !IsCellSendEnergy(cellPos, c) && IsCellSingle(cellPos, c))
+            || (cellType < CELLTYPE_SPROUT && !IsCellSendEnergy(cellPos, cell) && IsCellSingle(cellPos, cell))
             // || (cellType == CELLTYPE_WOOD && c.flowDirs = 0)
-        )
-    ) {
-        KillCell(cellPos);
+        );
+}
+[numthreads(8,8,1)]
+void KillKernel(uint3 id : SV_DispatchThreadID)
+{
+    uint2 cellPos = id.xy;
+    uint cellIdx = PosToIdx(cellPos);
+    Cell cell = _CellsRW[cellIdx];
+
+    if (cell.cellType == 0) return;
+
+    if (_KillCells[cellIdx]) {
+        // spit energy from the cell to soil
+        // spit organics to soil
+        float2 soil = _SoilTexRW[cellPos];
+        soil.x += 0.1; // organics
+        soil.y += _CellsRW[cellIdx].energy; // energy
+        _SoilTexRW[cellPos] = soil;
+
+        RemoveCell(cell);
+        cell = (Cell)0;
+
+        _KillCells[cellIdx] = 0;
+    } else {
+        // get rid of neighbors parent refs and energy flow
+        for (int dir = 0; dir < 4; ++dir) {
+            int toNeighbor = dir;
+            uint2 neighborPos = ShiftCoord(cellPos, toNeighbor);
+            uint neighborIdx = PosToIdx(neighborPos);
+            Cell neighborCell = _CellsRW[neighborIdx];
+
+            if (!_KillCells[neighborIdx] || neighborCell.cellType > 0) continue;
+
+            // remove parent ref on neighbor
+            cell.parentDir = cell.parentDir == toNeighbor ? 0xFFFFFFFFu : cell.parentDir;
+
+            // close energy flow to neighbor
+            SetIntBit(cell.energyFlow, 0, toNeighbor);
+        }
     }
+
+    _CellsRW[cellIdx] = cell;
 }
 
 [numthreads(8,8,1)]
 void SeedKernel(uint3 id : SV_DispatchThreadID)
 {
-    uint2 cellPos = id.xy;
-    uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _Cells[cellIdx];
-    if (cell.cellType != CELLTYPE_SEED) return; // only seeds
+    READ_CELL(id.xy);
+
+    if (cell.cellType != CELLTYPE_SEED) { // only seeds
+        // _CellsWO[cellIdx] = cell;
+        return;
+    }
 
     uint seedTimer = UnpackInt1(cell.seedProps);
 
     // move if single
     [branch]
     if (seedTimer == 255u) {
-        ConvertToSprout(cellPos);
+        ConvertToSprout(cell);
+        _CellsRW[cellIdx] = cell;
     } else {
         // deplete timer
         --seedTimer;
@@ -244,39 +313,28 @@ void SeedKernel(uint3 id : SV_DispatchThreadID)
             uint targetIdx = PosToIdx(targetCoord);
 
             [branch]
-            if (_Cells[targetIdx].cellType > 0) {
+            if (_CellsRW[targetIdx].cellType > 0) {
                 // kill target cell and self
                 KillCell(targetCoord);
                 KillCell(cellPos);
             } else {
                 // copy self in movement direction
-                _Cells[targetIdx] = cell;
+                _CellsRW[targetIdx] = cell;
 
                 // erase self in current position
-                _Cells[cellIdx] = (Cell)0;
+                _CellsRW[cellIdx] = (Cell)0;
             }
         } else {
-            _Cells[cellIdx] = cell;
+            _CellsRW[cellIdx] = cell;
         }
     }
 }
-
-// [numthreads(8,8,1)]
-// void BehaviorKernel(uint3 id : SV_DispatchThreadID)
-// {
-//     uint cellIdx = PosToIdx(id.xy);
-//     Cell c = _Cells[cellIdx];
-
-//     if (c.cellType != CELLTYPE_SPROUT) return; // only sprouts
-
-//     ExecuteGene(id.xy, _Genomes[c.genomeId].genes[c.activeGene]);
-// }
 
 [numthreads(8,8,1)]
 void StatsKernel(uint3 id : SV_DispatchThreadID)
 {
     uint cellIdx = PosToIdx(id.xy);
-    Cell c = _Cells[cellIdx];
+    Cell c = _CellsRO[cellIdx];
     // InterlockedAdd(_Stats[0], 1);
     InterlockedAdd(_Stats[0], c.cellType != 0 ? 1 : 0);
     InterlockedAdd(_Stats[1], c.cellType == CELLTYPE_LEAF ? 1 : 0);

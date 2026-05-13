@@ -53,9 +53,9 @@ void ApplyOrganicsKernel(uint3 id : SV_DispatchThreadID)
     int x = xi % _Width; if (x < 0) x += _Width;
     int y = yi % _Height; if (y < 0) y += _Height;
     uint2 pos = uint2(x, y);
-    float2 cur = _SoilTexRead[pos];
+    float2 cur = _SoilTexRW[pos];
     cur.x += d.delta;
-    _SoilTexWrite[pos] = cur;
+    _SoilTexRW[pos] = cur;
 }
 
 [numthreads(64,1,1)]
@@ -70,9 +70,9 @@ void ApplyEnergyKernel(uint3 id : SV_DispatchThreadID)
     int x = xi % _Width; if (x < 0) x += _Width;
     int y = yi % _Height; if (y < 0) y += _Height;
     uint2 pos = uint2(x, y);
-    float2 cur = _SoilTexRead[pos];
+    float2 cur = _SoilTexRW[pos];
     cur.y += d.delta;
-    _SoilTexWrite[pos] = cur;
+    _SoilTexRW[pos] = cur;
 }
 
 [numthreads(64,1,1)]
@@ -86,7 +86,7 @@ void KillCellsKernel(uint3 id : SV_DispatchThreadID)
     int x = xi % _Width; if (x < 0) x += _Width;
     int y = yi % _Height; if (y < 0) y += _Height;
     uint cellIndex = (uint)(y * _Width + x);
-    if (cellIndex >= _Cells.Length) return;
+    if (cellIndex >= _CellsRO.Length) return;
 
     KillCell(uint2(x,y));
 }
@@ -102,23 +102,23 @@ void SetCellsKernel(uint3 id : SV_DispatchThreadID)
     int x = xi % _Width; if (x < 0) x += _Width;
     int y = yi % _Height; if (y < 0) y += _Height;
     uint cellIndex = (uint)(y * _Width + x);
-    if (cellIndex < _Cells.Length)
+    if (cellIndex < _CellsRW.Length)
     {
-        Cell c = _Cells[cellIndex];
+        Cell c = _CellsRW[cellIndex];
 
         c.cellType = k.newType;
-        _Cells[cellIndex] = c;
+        _CellsRW[cellIndex] = c;
     }
 }
 
-// Copy a single cell from _Cells[_RequestedCellIdx] into _SingleCellOut[0]
+// Copy a single cell from _CellsRO[_RequestedCellIdx] into _SingleCellOut[0]
 [numthreads(1,1,1)]
 void CopyCellKernel(uint3 id : SV_DispatchThreadID)
 {
     uint idx = _RequestedCellIdx;
     if (idx >= _Width * _Height) return;
-    _SingleCellOut[0].cell = _Cells[idx];
-    _SingleCellOut[0].soil = _SoilTexRead[IdxToPos(idx)];
+    _SingleCellOut[0].cell = _CellsRO[idx];
+    _SingleCellOut[0].soil = _SoilTexRO[IdxToPos(idx)];
 }
 
 // Copy a single genome from _Genomes[_RequestedGenomeIdx] into _SingleGenomeOut[0]

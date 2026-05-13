@@ -2,13 +2,20 @@
 
 #include "Defines.hlsl"
 
-// Globals
-// _Cells;
-// _Genomes;
-// _SoilTexRead;
-// _SoilTexWrite;
-// _Width;
-// _Height;
+#define READ_CELL(pos) \
+uint2 cellPos = pos; \
+uint cellIdx = PosToIdx(cellPos); \
+Cell cell = _CellsRO[cellIdx];
+
+#define READ_SOIL(pos) \
+uint2 cellPos = pos; \
+float2 soil = _SoilTexRO[cellPos];
+
+#define READ_CELL_SOIL(pos) \
+uint2 cellPos = pos; \
+uint cellIdx = PosToIdx(cellPos); \
+Cell cell = _CellsRO[cellIdx]; \
+float2 soil = _SoilTexRO[cellPos];
 
 float hash12(float2 p)
 {
@@ -160,7 +167,7 @@ bool IsCellReceiveEnergy(uint2 cellPos, in Cell cell) {
     for (int dir = 0; dir < 4; ++dir) {
         uint2 neighborPos = ShiftCoord(cellPos, dir);
         uint neighborIdx = PosToIdx(neighborPos);
-        uint neighborFlow = _Cells[neighborIdx].energyFlow;
+        uint neighborFlow = _CellsRO[neighborIdx].energyFlow;
         result = result || GetIntBit(neighborFlow,dir);
     }
     return result;
@@ -273,10 +280,8 @@ uint MutateGenome(uint2 cellPos, uint genomeId)
 // #endregion // Genome funcs
 
 // #region Cell mutation
-void CreateCell(uint2 targetPos, uint type, uint direction, uint parentDir, uint genomeId)
+Cell CreateCell(uint2 targetPos, uint type, uint direction, uint parentDir, uint genomeId)
 {
-    uint targetIdx = PosToIdx(targetPos);
-
     Cell newCell = (Cell)0;
     newCell.cellType = type;
 
@@ -292,7 +297,7 @@ void CreateCell(uint2 targetPos, uint type, uint direction, uint parentDir, uint
     // mutate only on Sprout or Seed cells
     if (type >= CELLTYPE_SPROUT) {
         if ((randInt(targetPos, _Timestamp) & 3u) == 0) { // 25% to mutate
-            // uint parentGid = _Cells[parentIdx].genomeId;
+            // uint parentGid = _CellsRO[parentIdx].genomeId;
             // Genome parentGenome = _Genomes[parentGid];
             uint newGid = MutateGenome(targetPos, genomeId);
             newCell.genomeId = newGid;
@@ -304,79 +309,37 @@ void CreateCell(uint2 targetPos, uint type, uint direction, uint parentDir, uint
         }
     }
 
-    _Cells[targetIdx] = newCell;
+    return newCell;
 }
 
-void RemoveCell(uint2 cellPos) {
-    uint cellIdx = PosToIdx(cellPos);
-
-    // get rid of neighbors parent refs and energy flow
-    for (int dir = 0; dir < 4; ++dir) {
-        int toNeighbor = dir;
-        int fromNeighbor = RotateDir(toNeighbor, DIR_B);
-        uint2 neighborPos = ShiftCoord(cellPos, toNeighbor);
-        uint neighborIdx = neighborPos.y * _Width + neighborPos.x;
-
-        if (_Cells[neighborIdx].cellType == 0) continue;
-
-        // remove parent ref on neighbor
-        _Cells[neighborIdx].parentDir = _Cells[neighborIdx].parentDir == fromNeighbor ? 0xFFFFFFFF : _Cells[neighborIdx].parentDir;
-
-        // close energy flow to this cell on neighbor
-        if (GetIntBit(_Cells[neighborIdx].energyFlow, fromNeighbor))
-            SetIntBit(_Cells[neighborIdx].energyFlow, 0, fromNeighbor);
-    }
-
+void RemoveCell(inout Cell cell) {
     // decrement genome refcount
-    InterlockedAdd(_Genomes[_Cells[cellIdx].genomeId].cellNum, (uint)-1 * (_Cells[cellIdx].cellType >= CELLTYPE_SPROUT));
+    InterlockedAdd(_Genomes[cell.genomeId].cellNum, (uint)-1 * (cell.cellType >= CELLTYPE_SPROUT));
 
     // clear cell
-    _Cells[cellIdx] = (Cell)0;
+    // cell = (Cell)0;
 }
 
 void KillCell(uint2 cellPos) {
     uint cellIdx = PosToIdx(cellPos);
-    // Cell cell = _Cells[cellIdx];
-
-    // spit energy from the cell to soil
-    // spit organics to soil
-    float2 cur = _SoilTexRead[cellPos];
-    cur.x += 0.1; // organics
-    cur.y += _Cells[cellIdx].energy; // energy
-    _SoilTexWrite[cellPos] = cur; // write to write-target; commit swap on CPU
-
-    RemoveCell(cellPos);
+    // Cell cell = _CellsRO[cellIdx];
+    _KillCells[cellIdx] = 1;
 }
 
-void ConvertToSeed(uint2 cellPos, uint speed, uint timer) {
-    uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _Cells[cellIdx];
-
+void ConvertToSeed(inout Cell cell, uint speed, uint timer) {
     InterlockedAdd(_Genomes[cell.genomeId].cellNum, cell.cellType < CELLTYPE_SPROUT ? 1 : 0);
     cell.cellType = CELLTYPE_SEED;
     cell.seedProps = (speed << 16) | timer;
-
-    _Cells[cellIdx] = cell;
 }
 
-void ConvertToSprout(uint2 cellPos) {
-    uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _Cells[cellIdx];
-
+void ConvertToSprout(inout Cell cell) {
     InterlockedAdd(_Genomes[cell.genomeId].cellNum, cell.cellType < CELLTYPE_SPROUT ? 1 : 0);
     cell.cellType = CELLTYPE_SPROUT;
     cell.activeGene = 0u;
-
-    _Cells[cellIdx] = cell;
 }
 
-void ConvertToWood(uint2 cellPos) {
-    uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _Cells[cellIdx];
-
+void ConvertToWood(inout Cell cell) {
     InterlockedAdd(_Genomes[cell.genomeId].cellNum, cell.cellType >= CELLTYPE_SPROUT ? -1 : 0);
     cell.cellType = CELLTYPE_WOOD;
-
-    _Cells[cellIdx] = cell;
 }
 // #endregion // Cell mutation

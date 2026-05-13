@@ -23,9 +23,9 @@ void InitOrganicsKernel(uint3 id : SV_DispatchThreadID)
     if (id.x > _Width || id.y > _Height) return;
 
     uint2 pos = uint2(id.x, id.y);
-    float2 cur = _SoilTexRead[pos];
+    float2 cur = _SoilTexRW[pos];
     cur.x = _StartOrganic;
-    _SoilTexWrite[pos] = cur;
+    _SoilTexRW[pos] = cur;
 }
 
 [numthreads(8,8,1)]
@@ -34,9 +34,9 @@ void InitEnergyKernel(uint3 id : SV_DispatchThreadID)
     if (id.x > _Width || id.y > _Height) return;
 
     uint2 pos = uint2(id.x, id.y);
-    float2 cur = _SoilTexRead[pos];
+    float2 cur = _SoilTexRW[pos];
     cur.y = _MeanEnergy;
-    _SoilTexWrite[pos] = cur;
+    _SoilTexRW[pos] = cur;
 }
 
 [numthreads(1,1,1)]
@@ -45,11 +45,13 @@ void InitCells(uint3 id : SV_DispatchThreadID)
     uint2 cellPos = id.xy * 32;
     uint cellIdx = PosToIdx(cellPos);
 
-    _Cells[cellIdx] = (Cell)0;
-    _Cells[cellIdx].cellType = CELLTYPE_SPROUT;
-    _Cells[cellIdx].genomeId = AllocateRandomGenome(cellPos);
-    _Cells[cellIdx].parentDir = 0xFFFFFFFF;
-    _Cells[cellIdx].energy = 10.0;
+    Cell newCell = (Cell)0;
+    newCell.cellType = CELLTYPE_SPROUT;
+    newCell.genomeId = AllocateRandomGenome(cellPos);
+    newCell.parentDir = 0xFFFFFFFF;
+    newCell.energy = 10.0;
+
+    _CellsRW[cellIdx] = newCell;
 }
 
 [numthreads(8,8,1)]
@@ -57,7 +59,7 @@ void CleanCells(uint3 id : SV_DispatchThreadID)
 {
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
-    _Cells[cellIdx] = (Cell)0;
+    _CellsRW[cellIdx] = (Cell)0;
 }
 
 [numthreads(64,1,1)]

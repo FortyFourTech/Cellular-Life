@@ -35,7 +35,7 @@ Shader "Simulation/Cells"
             int _Width;
             int _Height;
 
-            StructuredBuffer<Cell> _Cells;
+            StructuredBuffer<Cell> _CellsRO;
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
             struct v2f { float2 uv : TEXCOORD0; float4 vertex : SV_POSITION; };
@@ -46,17 +46,17 @@ Shader "Simulation/Cells"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                Cell c = _Cells[i.uv.y * _Height * _Width + i.uv.x * _Width];
+                Cell c = _CellsRO[i.uv.y * _Height * _Width + i.uv.x * _Width];
                 uint cellType = c.cellType;
 
                 fixed4 col = float4(0,0,0,1);
 
-                if (cellType == 1) col = _LeafColor; // leaf green
-                if (cellType == 2) col = _RootColor; // root red
-                if (cellType == 3) col = _AntennaColor; // antenna blue
-                if (cellType == 4) col = _WoodColor; // wood grey
-                if (cellType == 5) col = _SproutColor; // sprout
-                if (cellType == 6) col = _SeedColor; // seed
+                if (cellType == CELLTYPE_LEAF) col = _LeafColor; // leaf green
+                if (cellType == CELLTYPE_ROOT) col = _RootColor; // root red
+                if (cellType == CELLTYPE_ANTENNA) col = _AntennaColor; // antenna blue
+                if (cellType == CELLTYPE_WOOD) col = _WoodColor; // wood grey
+                if (cellType == CELLTYPE_SPROUT) col = _SproutColor; // sprout
+                if (cellType == CELLTYPE_SEED) col = _SeedColor; // seed
 
                 // return float4(1,1,1,1);
                 return col;
