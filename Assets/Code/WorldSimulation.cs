@@ -435,7 +435,7 @@ public class WorldSimulation : MonoBehaviour
 
     // Read a single cell at (x,y) and its genome asynchronously.
     // onComplete is called with the CellData and GenomeData (GenomeData may be default if absent).
-    public void RequestCellAndGenome(int x, int y, Action<CellData, GenomeData> onComplete)
+    public void RequestCellAndGenome(int x, int y, Action<CellInfo, GenomeData> onComplete)
     {
         int idx = y * SimParams._Width + x;
         int total = SimParams._Width * SimParams._Height;
@@ -464,11 +464,11 @@ public class WorldSimulation : MonoBehaviour
                 return;
             }
 
-            var cellArr = req.GetData<CellData>();
+            var cellArr = req.GetData<CellInfo>();
             var cell = cellArr[0];
 
-            int gidx = (int)cell.genomeId;
-            if (cell.cellType == CellType.Empty || kernelCopyGenomeIdx < 0 || genomesBuffer == null || gidx < 0 || gidx >= genomesBuffer.count)
+            int gidx = (int)cell.cell.genomeId;
+            if (cell.cell.cellType == CellType.Empty || kernelCopyGenomeIdx < 0 || genomesBuffer == null || gidx < 0 || gidx >= genomesBuffer.count)
             {
                 onComplete?.Invoke(cell, default);
                 return;
