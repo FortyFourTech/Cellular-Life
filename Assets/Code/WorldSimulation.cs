@@ -622,7 +622,7 @@ public class WorldSimulation : MonoBehaviour
                 cb.DispatchCompute(simulationShader, kernelRerouteIdx, cx, cy, 1);
                 _cellsBuffer.SwapResource(cb);
                 break;
-            case 5: // trsnsport
+            case 5: // transport
                 cb.DispatchCompute(simulationShader, kernelTransportIdx, cx, cy, 1);
                 _cellsBuffer.SwapResource(cb);
                 break;
