@@ -246,8 +246,33 @@ public class WorldSimulation : MonoBehaviour
 
         // init starting cells
         int cellsKernelIdx = initShader.FindKernel("InitCells");
+        cb.SetKeyword(initShader, new LocalKeyword(initShader, "RANDOMIZE_GENOME"), _genomeStorage?.genomes.Count > 0);
         cb.SetComputeIntParam(initShader, "_CellRowCount", cx);
         cb.DispatchCompute(initShader, cellsKernelIdx, cx, cy, 1);
+
+        // If a GenomeStorage asset is assigned, copy its genomes into the GPU buffer
+        // up to the buffer capacity. Remaining entries are left as default (generated
+        // by existing initialization logic).
+        try {
+            if (_genomeStorage != null && _genomeStorage.genomes != null && _genomeStorage.genomes.Count > 0)
+            {
+                int genomeCapacity = SimParams._Width * SimParams._Height;
+                var arr = new GenomeData[genomeCapacity];
+
+                int useCount = Mathf.Min(_genomeStorage.genomes.Count, genomeCapacity);
+                for (int i = 0; i < useCount; ++i)
+                {
+                    arr[i] = _genomeStorage.genomes[i];
+                }
+                // remaining entries stay as default (new GenomeData())
+
+                genomesBuffer.SetData(arr);
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"Failed to apply genomes from GenomeStorage: {ex.Message}");
+        }
 
         stats = new uint[4];
         statsBuffer.SetData(stats);

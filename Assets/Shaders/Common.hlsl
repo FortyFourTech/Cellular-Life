@@ -234,6 +234,11 @@ uint AllocateRandomGenome(uint2 cellPos)
     return AllocateGenomeSlot(GenerateRandomGenome(cellPos), 0);
 }
 
+uint AllocateGenome(uint cellIdx)
+{
+    InterlockedAdd(_Genomes[cellIdx].cellNum, 1);
+    return cellIdx;
+}
 
 Gene MutateGene(uint2 cellPos, Gene gene)
 {

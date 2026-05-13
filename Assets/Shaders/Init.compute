@@ -5,6 +5,8 @@
 #pragma kernel CleanCells
 #pragma kernel CleanGenomes
 
+#pragma multi_compile _ RANDOMIZE_GENOME
+
 #include "Defines.hlsl"
 #include "CommonParams.hlsl"
 
@@ -47,9 +49,13 @@ void InitCells(uint3 id : SV_DispatchThreadID)
 
     Cell newCell = (Cell)0;
     newCell.cellType = CELLTYPE_SPROUT;
-    newCell.genomeId = AllocateRandomGenome(cellPos);
     newCell.parentDir = 0xFFFFFFFF;
     newCell.energy = 10.0;
+#if RANDOMIZE_GENOME
+    newCell.genomeId = AllocateGenome(id.y * (_Height/32) + id.x);
+#else
+    newCell.genomeId = AllocateRandomGenome(cellPos);
+#endif
 
     _CellsRW[cellIdx] = newCell;
 }
