@@ -92,7 +92,7 @@ void RootKernel(uint3 id : SV_DispatchThreadID)
             localOrganics -= cellNrgDelta * (dx == 0 && dy == 0);
 
             float neighborRoots = (neighborCell.cellType == CELLTYPE_ROOT) * (dx == 0 && dy == 0 ? 1.0 : 0.125);
-            float soilOrgDelta = min(neighborRoots, ABSORB_SOIL_ORGANICS * _Timestep);
+            float soilOrgDelta = min(cellSoil.y, neighborRoots * ABSORB_SOIL_ORGANICS * _Timestep);
             soilDepleteOrg += soilOrgDelta;
         }
     }
@@ -134,8 +134,8 @@ void AntennaKernel(uint3 id : SV_DispatchThreadID)
             cellCollectNrg += cellNrgDelta;
             localEnergy -= cellNrgDelta * (dx == 0 && dy == 0);
 
-            float neighborRoots = (neighborCell.cellType == CELLTYPE_ANTENNA) * (dx == 0 && dy == 0 ? 1.0 : 0.125);
-            float soilNrgDelta = min(neighborRoots, ABSORB_SOIL_ENERGY * _Timestep);
+            float neighborAntennas = (neighborCell.cellType == CELLTYPE_ANTENNA) * (dx == 0 && dy == 0 ? 1.0 : 0.125);
+            float soilNrgDelta = min(cellSoil.y, neighborAntennas * ABSORB_SOIL_ENERGY * _Timestep);
             soilDepleteNrg += soilNrgDelta;
         }
     }
@@ -150,63 +150,66 @@ void AntennaKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(8,8,1)]
 void RerouteKernel(uint3 id : SV_DispatchThreadID)
 {
-    uint2 cellPos = id.xy;
-    uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _CellsRO[cellIdx];
+    READ_CELL(id.xy);
 
-    if (cell.cellType == CELLTYPE_WOOD && cell.energyFlow == 0 && cell.parentDir != 0xffffffff) { // only wood without energy flow but with parent
-        // for self -> enable flow to parent
-        SetIntBit(cell.energyFlow, 1, cell.parentDir);
-    } else if (cell.cellType > 0) {
-        // for parent -> disable flow to wood without flow
-        for (int dir = 0; dir < 4; ++dir) {
-            uint2 neighborPos = ShiftCoord(cellPos, dir);
-            uint neighborIdx = PosToIdx(neighborPos);
-            Cell neighborCell = _CellsRO[neighborIdx];
-            uint neighborFlow = neighborCell.energyFlow;
-            SetIntBit(neighborFlow, 0, RotateDir(dir, DIR_B));
-            if (neighborCell.cellType > 0 && neighborCell.cellType < CELLTYPE_SPROUT && neighborFlow == 0 && neighborCell.parentDir == RotateDir(dir, DIR_B)) {
-                SetIntBit(cell.energyFlow, 0, dir);
-            }
-        }
+    uint cellType = cell.cellType;
+    if (cellType == 0 || cellType > CELLTYPE_SEED) { // only valid cells transfer energy
+        _CellsWO[cellIdx] = cell;
+        return;
     }
+
+    for (uint dir = 0; dir < 4; ++dir) {
+        READ_NEIGHBOR_CELL(cellPos, dir);
+
+        bool isNeighborValid = neighborCell.cellType > 0;
+        int toNeighbor = dir;
+        int fromNeighbor = RotateDir(toNeighbor, DIR_B);
+
+        bool canSend = isNeighborValid && GetIntBit(cell.energyFlow, toNeighbor);
+        // if two cells wants to send energy to each other then wins the one that sending energy to its parent
+        // another one should stop sending energy here and potentially change flow direction.
+        bool isNeighborSending = isNeighborValid && GetIntBit(neighborCell.energyFlow, fromNeighbor);
+        canSend = canSend && (!isNeighborSending || cell.parentDir == toNeighbor);
+        SetIntBit(cell.energyFlow, canSend, toNeighbor);
+    }
+
+    if (cell.cellType == CELLTYPE_WOOD && cell.energyFlow == 0 && cell.parentDir != 0xFFFFFFFFu)
+        SetIntBit(cell.energyFlow, 1, cell.parentDir);
+
     _CellsWO[cellIdx] = cell;
 }
 
 [numthreads(8,8,1)]
 void TransportKernel(uint3 id : SV_DispatchThreadID)
 {
-    uint2 cellPos = id.xy;
-    uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _CellsRO[cellIdx];
-    uint cellType = _CellsRO[cellIdx].cellType;
-    if (cellType == 0 || cellType >=  CELLTYPE_SEED) return; // only valid cells transfer energy
+    READ_CELL(id.xy);
 
-    // Pull-based transport: each cell attempts to pull energy from neighbors
-    // float sendDelta = 0.0;
-    // float receiveDelta = 0.0;
-    for (uint dir = 0; dir < 4; ++dir) {
-        uint2 neighborPos = ShiftCoord(cellPos, dir);
-        uint neighborIdx = PosToIdx(neighborPos);
-        Cell neighborCell = _CellsRO[neighborIdx];
-        if (neighborCell.cellType == 0) continue;
-
-        // Check if this cell is willing to send energy toward the neighbor.
-        uint canSend = GetIntBit(cell.energyFlow, dir);
-        float lowerBound = min(cell.energy, 1.0);
-        cell.energy -= canSend * max(cell.energy - lowerBound, 0) * TRANSPORT_SPEED * _Timestep;
-        // sendDelta += canSend * max(cell.energy - lowerBound, 0) * TRANSPORT_SPEED * _Timestep;
-
-        // Check if the neighbor is willing to send energy toward this cell.
-        uint oppDir = RotateDir(dir, DIR_B);
-        uint canReceive = GetIntBit(neighborCell.energyFlow, oppDir);
-
-        lowerBound = min(neighborCell.energy, 1.0);
-        cell.energy += canReceive * max(neighborCell.energy - lowerBound, 0) * TRANSPORT_SPEED * _Timestep;
-        // receiveDelta += canReceive * max(neighborCell.energy - lowerBound, 0) * TRANSPORT_SPEED * _Timestep;
+    uint cellType = cell.cellType;
+    if (cellType == 0 || cellType > CELLTYPE_SEED) { // only valid cells transfer energy
+        _CellsWO[cellIdx] = cell;
+        return;
     }
 
-    // cell.energy += receiveDelta - sendDelta;
+    // Pull-based transport: each cell attempts to pull energy from neighbors
+    // or deplete self energy for the cells in directions of energy flow
+    for (uint dir = 0; dir < 4; ++dir) {
+        READ_NEIGHBOR_CELL(cellPos, dir);
+
+        bool isNeighborValid = neighborCell.cellType > 0;
+        int toNeighbor = dir;
+        int fromNeighbor = RotateDir(toNeighbor, DIR_B);
+
+        // Check if this cell is willing to send energy toward the neighbor.
+        uint canSend = isNeighborValid * GetIntBit(cell.energyFlow, toNeighbor);
+        float lowerBound = min(cell.energy, 1.0);
+        cell.energy -= canSend * max(cell.energy - lowerBound, 0) * TRANSPORT_SPEED * _Timestep;
+
+        // Check if the neighbor is willing to send energy toward this cell.
+        uint canReceive = isNeighborValid * GetIntBit(neighborCell.energyFlow, fromNeighbor);
+        lowerBound = min(neighborCell.energy, 1.0);
+        cell.energy += canReceive * max(neighborCell.energy - lowerBound, 0) * TRANSPORT_SPEED * _Timestep;
+    }
+
     _CellsWO[cellIdx] = cell;
 }
 
@@ -244,39 +247,40 @@ void KillKernel(uint3 id : SV_DispatchThreadID)
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
     Cell cell = _CellsRW[cellIdx];
+    bool killCell = _KillCells[cellIdx];
 
-    if (cell.cellType == 0) return;
+    if (cell.cellType > 0) {
+        if (killCell) {
+            // spit energy from the cell to soil
+            // spit organics to soil
+            float2 soil = _SoilTexRW[cellPos];
+            soil.x += 0.1; // organics
+            soil.y += _CellsRW[cellIdx].energy; // energy
+            _SoilTexRW[cellPos] = soil;
 
-    if (_KillCells[cellIdx]) {
-        // spit energy from the cell to soil
-        // spit organics to soil
-        float2 soil = _SoilTexRW[cellPos];
-        soil.x += 0.1; // organics
-        soil.y += _CellsRW[cellIdx].energy; // energy
-        _SoilTexRW[cellPos] = soil;
+            RemoveCell(cell);
+            cell = (Cell)0;
+        } else {
+            // get rid of neighbors parent refs and energy flow
+            for (int dir = 0; dir < 4; ++dir) {
+                int toNeighbor = dir;
+                uint2 neighborPos = ShiftCoord(cellPos, toNeighbor);
+                uint neighborIdx = PosToIdx(neighborPos);
+                Cell neighborCell = _CellsRW[neighborIdx];
 
-        RemoveCell(cell);
-        cell = (Cell)0;
+                if (!_KillCells[neighborIdx] && neighborCell.cellType > 0) continue;
 
-        _KillCells[cellIdx] = 0;
-    } else {
-        // get rid of neighbors parent refs and energy flow
-        for (int dir = 0; dir < 4; ++dir) {
-            int toNeighbor = dir;
-            uint2 neighborPos = ShiftCoord(cellPos, toNeighbor);
-            uint neighborIdx = PosToIdx(neighborPos);
-            Cell neighborCell = _CellsRW[neighborIdx];
+                // remove parent ref on neighbor
+                cell.parentDir = cell.parentDir == toNeighbor ? 0xFFFFFFFFu : cell.parentDir;
 
-            if (!_KillCells[neighborIdx] || neighborCell.cellType > 0) continue;
-
-            // remove parent ref on neighbor
-            cell.parentDir = cell.parentDir == toNeighbor ? 0xFFFFFFFFu : cell.parentDir;
-
-            // close energy flow to neighbor
-            SetIntBit(cell.energyFlow, 0, toNeighbor);
+                // close energy flow to neighbor
+                SetIntBit(cell.energyFlow, 0, toNeighbor);
+            }
         }
     }
 
+    // clear processed kill flag so subsequent passes don't see it
+    _KillCells[cellIdx] = 0;
     _CellsRW[cellIdx] = cell;
 }
 

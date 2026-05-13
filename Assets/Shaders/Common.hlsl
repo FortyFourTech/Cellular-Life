@@ -17,6 +17,11 @@ uint cellIdx = PosToIdx(cellPos); \
 Cell cell = _CellsRO[cellIdx]; \
 float2 soil = _SoilTexRO[cellPos];
 
+#define READ_NEIGHBOR_CELL(pos, dir) \
+uint2 neighborPos = ShiftCoord(cellPos, dir); \
+uint neighborIdx = PosToIdx(neighborPos); \
+Cell neighborCell = _CellsRO[neighborIdx];
+
 float hash12(float2 p)
 {
     float3 p3 = frac(float3(p.xyx) * 0.1031);
@@ -145,7 +150,7 @@ uint RotateDir(uint baseDir, int relDir) {
     return (baseDir + relDir + 4) % 4;
 }
 
-uint2 ShiftCoord(uint2 inPos, uint dir) {
+uint2 ShiftCoord(int2 inPos, uint dir) {
     static const int2 offsets[4] = {
         int2( 0,  1), // 0
         int2( 1,  0), // 1
@@ -153,8 +158,8 @@ uint2 ShiftCoord(uint2 inPos, uint dir) {
         int2(-1,  0), // 3
     };
 
-    uint2 mapSize = uint2(_Width,_Height);
-    return (inPos + (uint2)offsets[dir] + mapSize) % mapSize;
+    int2 mapSize = int2(_Width,_Height);
+    return (inPos + offsets[dir] + mapSize) % mapSize;
 }
 // #endregion // Direction
 
