@@ -145,7 +145,7 @@ public class SimulationUI : MonoBehaviour
 #if UNITY_EDITOR
         if (Input.GetMouseButtonDown(1) && inspectedCell.cellType != CellType.Empty)
         {
-            _genomeStorage.genomes.Add(inspectedGenome);
+            _genomeStorage.genomes.Insert(0, inspectedGenome);
             UnityEditor.EditorUtility.SetDirty(_genomeStorage);
             UnityEditor.AssetDatabase.SaveAssetIfDirty(_genomeStorage);
         }
