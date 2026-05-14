@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -160,16 +161,16 @@ public class SimulationUI : MonoBehaviour
 
         GUILayout.Label("Simulation Controls", GUI.skin.label);
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button(isPaused ? "Resume" : "Pause")) { isPaused = !isPaused; }
+        if (GUILayout.Button(new GUIContent(isPaused ? "Resume" : "Pause", isPaused ? "[Ctrl]+[Space]" : "[Space]"))) { isPaused = !isPaused; }
         if (isPaused)
-            if (GUILayout.Button("Step")) { StepOnce(); }
+            if (GUILayout.Button(new GUIContent("Step", "[Space]"))) { StepOnce(); }
         GUILayout.EndHorizontal();
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("Generate")) { Generate(); }
         if (GUILayout.Button("Populate")) { Populate(); }
-        if (GUILayout.Button("Restart")) { Generate(); Populate(); }
+        if (GUILayout.Button(new GUIContent("Restart", "[Ctrl]+[R]"))) { Generate(); Populate(); }
         GUILayout.EndHorizontal();
-        GUILayout.Label($"Speed: {simulationSpeed:F2}");
+        GUILayout.Label(new GUIContent($"Speed: {simulationSpeed:F2}", "[Ctrl] + MouseWheel"));
         simulationSpeed = GUILayout.HorizontalSlider(simulationSpeed, 0.01f, 1f);
         if (isPaused)
             executeSubstep = GUILayout.Toggle(executeSubstep, $"Execute Sim Substep ({world.SubstepIdx})");
@@ -200,7 +201,8 @@ public class SimulationUI : MonoBehaviour
 
         GUILayout.Space(6);
         GUILayout.Label("Visualization", GUI.skin.label);
-        activeRenderMode = (WorldRenderer.RenderMode)GUILayout.SelectionGrid((int)activeRenderMode, Enum.GetNames(typeof(WorldRenderer.RenderMode)), 2);
+        GUIContent[] renderModes = Enum.GetNames(typeof(WorldRenderer.RenderMode)).Select((x,idx) => new GUIContent(x, $"[{idx+1}]")).ToArray();
+        activeRenderMode = (WorldRenderer.RenderMode)GUILayout.SelectionGrid((int)activeRenderMode, renderModes, 2);
         // showEnergyFlow = GUILayout.Toggle(showEnergyFlow, "Show Energy Flow");
         wRenderer.renderMode = activeRenderMode;
 
@@ -236,6 +238,11 @@ public class SimulationUI : MonoBehaviour
         GUILayout.EndArea();
 
         DrawCellInspectorPanel();
+
+        if (!string.IsNullOrEmpty(GUI.tooltip)) {
+            Vector2 mousePos = Input.mousePosition; // Event.current.mousePosition;
+            GUI.Box(new Rect(mousePos.x + 16f, Screen.height - mousePos.y - 16f, 150f, 25f), GUI.tooltip);
+        }
     }
 
     void DrawCellInspectorPanel()
