@@ -15,14 +15,15 @@
 
 RWStructuredBuffer<SimStats> _Stats; // small stats buffer
 
-#include "Common.hlsl"
+#include "CommonLib.hlsl"
+#include "CellLib.hlsl"
 // #include "CellBehavior.hlsl"
 
 [numthreads(8,8,1)]
 void DiffuseEnergyKernel(uint3 id : SV_DispatchThreadID)
 {
+    GUARD_CELL_COORD(id.xy);
     uint2 cellPos = id.xy;
-    if (cellPos.x >= _Width || cellPos.y >= _Height) return;
 
     float2 cur = _SoilTexRW[cellPos];
     // float2 next = lerp(cur, avg, saturate(_DiffusionRate));
@@ -35,6 +36,7 @@ void DiffuseEnergyKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(8,8,1)]
 void LeafKernel(uint3 id : SV_DispatchThreadID)
 {
+    GUARD_CELL_COORD(id.xy);
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
     Cell cell = _CellsRW[cellIdx];
@@ -42,7 +44,7 @@ void LeafKernel(uint3 id : SV_DispatchThreadID)
 
     float organicsLocal = 0.0;
     float organicsNeighbors = 0.0;
-    // uint freeSpace = 0; // TODO: consider free space around the leaf
+    uint freeSpace = 0; // TODO: consider free space around the leaf
     uint2 mapSize = uint2(_Width,_Height);
     for (int dx = -1; dx <= 1; ++dx) {
         for (int dy = -1; dy <= 1; ++dy) {
@@ -50,13 +52,13 @@ void LeafKernel(uint3 id : SV_DispatchThreadID)
             float2 soil = _SoilTexRO[coord];
             organicsLocal += soil.x * (dx == 0 && dy == 0);
             organicsNeighbors += soil.x * (1 - (dx == 0 && dy == 0));
-            // uint coordIdx = PosToIdx(coord);
-            // freeSpace += _CellsRO[coordIdx].cellType == 0; // TODO: consider free space around the leaf
+            uint coordIdx = PosToIdx(coord);
+            freeSpace += _CellsRO[coordIdx].cellType == 0; // TODO: consider free space around the leaf
         }
     }
     float organicsAround = organicsLocal + (organicsNeighbors * 0.125);
-    float produced = organicsAround * _Sunlight * _Timestep;
-    // float produced = organicsAround * ((float)freeSpace / 7.0) * _Sunlight * _Timestep; // TODO: consider free space around the leaf
+    // float produced = organicsAround * _Sunlight * _Timestep;
+    float produced = organicsAround * ((float)freeSpace / 7.0) * _Sunlight * _Timestep; // TODO: consider free space around the leaf
     cell.energy += produced * _Timestep;
     _CellsRW[cellIdx] = cell;
 }

@@ -1,24 +1,33 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class WorldRenderer : MonoBehaviour
 {
+    public RawImage imageRenderer;
     public WorldSimulation world;
     public Material soilMaterial;
     public Material energyMaterial;
     public Material worldMaterial;
-    public RenderTexture worldRT;
 
     public enum RenderMode { CellsFull, CellsEnergy, SoilOrganics, SoilEnergy };
     public RenderMode renderMode = RenderMode.CellsFull;
 
     Mesh quadMesh;
     ComputeBuffer readBuffer;
+    RenderTexture _RT;
 
     void Start()
     {
         if (world == null) world = FindAnyObjectByType<WorldSimulation>();
         // CreateQuadMesh();
+        _RT = new RenderTexture(world.SimParams._Width, world.SimParams._Height, 0, RenderTextureFormat.ARGBFloat)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Repeat
+        };
+        // _RT.enableRandomWrite = true;
+        imageRenderer.texture = _RT;
     }
 
     void Update()
@@ -35,7 +44,7 @@ public class WorldRenderer : MonoBehaviour
         //     Graphics.Blit(null, cellRT, cellMaterial);
         // }
 
-        if (worldRT)
+        if (_RT)
         {
             var blitMat = renderMode switch
             {
@@ -54,7 +63,7 @@ public class WorldRenderer : MonoBehaviour
             blitMat.SetFloat("_NrgThreshold", world.SimParams._CriticalNrg);
             blitMat.SetFloat("_Threshold", renderMode == RenderMode.SoilEnergy ? world.SimParams._CriticalNrg : world.SimParams._CriticalOrg);
 
-            Graphics.Blit(null, worldRT, blitMat);
+            Graphics.Blit(null, _RT, blitMat);
         }
     }
 

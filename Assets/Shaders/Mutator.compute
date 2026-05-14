@@ -39,7 +39,8 @@ RWStructuredBuffer<CellInfo> _SingleCellOut;
 RWStructuredBuffer<Genome> _SingleGenomeOut;
 RWStructuredBuffer<CommandEntry> _SingleCommandOut;
 
-#include "Common.hlsl"
+#include "CommonLib.hlsl"
+#include "CellLib.hlsl"
 
 [numthreads(64,1,1)]
 void ApplyOrganicsKernel(uint3 id : SV_DispatchThreadID)

@@ -37,7 +37,9 @@ static const uint COND_NUM = 13u;
 static const uint COMM_NUM = 13u;
 static const uint SINGLE_COMM_NUM = 10u;
 
-#include "Common.hlsl"
+#include "CommonLib.hlsl"
+#include "GenomeLib.hlsl"
+#include "CellLib.hlsl"
 
 // #region Gene conditions
 bool CondOrgNrg(float2 soil) { // soil has more organics than energy

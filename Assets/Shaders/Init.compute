@@ -17,7 +17,8 @@ cbuffer InitParams
     uint _CellRowCount;
 };
 
-#include "Common.hlsl"
+#include "CommonLib.hlsl"
+#include "GenomeLib.hlsl"
 
 [numthreads(8,8,1)]
 void InitOrganicsKernel(uint3 id : SV_DispatchThreadID)
