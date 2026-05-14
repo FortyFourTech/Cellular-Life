@@ -363,8 +363,10 @@ public class WorldSimulation : MonoBehaviour
         genomesBuffer?.Release();
         killBuffer?.Release();
         statsBuffer?.Release();
+        debugBuffer?.Release();
         organicsDeltaBuffer?.Release();
         energyDeltaBuffer?.Release();
+        setCellBuffer?.Release();
         killCellsBuffer?.Release();
         singleCellBuffer?.Release();
         singleGenomeBuffer?.Release();
