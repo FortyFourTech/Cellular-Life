@@ -374,11 +374,10 @@ bool CommandSpitEnergy(uint2 cellPos) {
 
 // Decision kernel: evaluates gene conditions and writes a command entry per cell
 [numthreads(8,8,1)]
-void DecisionKernel(uint3 dtid : SV_DispatchThreadID)
+void DecisionKernel(uint3 id : SV_DispatchThreadID)
 {
-    uint2 cellPos = dtid.xy;
-    uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _CellsRO[cellIdx];
+    GUARD_CELL_COORD(id.xy);
+    READ_CELL(id.xy);
 
     if (cellPos.x >= _Width || cellPos.y >= _Height
         || cell.cellType != CELLTYPE_SPROUT) return;
@@ -443,7 +442,7 @@ void Cmd_##ID(uint3 dtid : SV_DispatchThreadID) \
     if (dtid.x >= _Width || dtid.y >= _Height) return; \
     uint2 cellPos = dtid.xy; \
     uint cellIdx = PosToIdx(cellPos); \
-    Cell cell = _CellsRO[cellIdx]; \
+    Cell cell = _CellsRW[cellIdx]; \
     CommandEntry ce = _CommandBuffer[cellIdx]; \
     if (cell.cellType != CELLTYPE_SPROUT \
         || ce.commandId != (ID)) \

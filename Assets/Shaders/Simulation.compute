@@ -64,6 +64,7 @@ void LeafKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(8,8,1)]
 void RootKernel(uint3 id : SV_DispatchThreadID)
 {
+    GUARD_CELL_COORD(id.xy);
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
     Cell cell = _CellsRW[cellIdx];
@@ -107,6 +108,7 @@ void RootKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(8,8,1)]
 void AntennaKernel(uint3 id : SV_DispatchThreadID)
 {
+    GUARD_CELL_COORD(id.xy);
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
     Cell cell = _CellsRW[cellIdx];
@@ -150,6 +152,7 @@ void AntennaKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(8,8,1)]
 void RerouteKernel(uint3 id : SV_DispatchThreadID)
 {
+    GUARD_CELL_COORD(id.xy);
     READ_CELL(id.xy);
 
     uint cellType = cell.cellType;
@@ -182,6 +185,7 @@ void RerouteKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(8,8,1)]
 void TransportKernel(uint3 id : SV_DispatchThreadID)
 {
+    GUARD_CELL_COORD(id.xy);
     READ_CELL(id.xy);
 
     uint cellType = cell.cellType;
@@ -216,8 +220,9 @@ void TransportKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(8,8,1)]
 void AbsorptionKernel(uint3 id : SV_DispatchThreadID)
 {
-    uint cellIdx = PosToIdx(id.xy);
-    Cell cell = _CellsRW[cellIdx];
+    GUARD_CELL_COORD(id.xy);
+    READ_CELL(id.xy);
+
     if (cell.cellType == 0) return;
 
     float cost = (cell.cellType == CELLTYPE_SEED ? ABSORB_LIFE_ENERGY_SEED : ABSORB_LIFE_ENERGY) * _Timestep;
@@ -228,9 +233,11 @@ void AbsorptionKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(8,8,1)]
 void DeathKernel(uint3 id : SV_DispatchThreadID)
 {
-    uint2 cellPos = id.xy;
-    uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _CellsRO[cellIdx];
+    GUARD_CELL_COORD(id.xy);
+    READ_CELL(id.xy);
+
+    if (cell.cellType == 0) return;
+
     uint cellType = cell.cellType;
     float2 soil = _SoilTexRO[cellPos];
     _KillCells[cellIdx] = cellType > 0
@@ -244,6 +251,7 @@ void DeathKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(8,8,1)]
 void KillKernel(uint3 id : SV_DispatchThreadID)
 {
+    GUARD_CELL_COORD(id.xy);
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
     Cell cell = _CellsRW[cellIdx];
@@ -287,6 +295,7 @@ void KillKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(8,8,1)]
 void SeedKernel(uint3 id : SV_DispatchThreadID)
 {
+    GUARD_CELL_COORD(id.xy);
     READ_CELL(id.xy);
 
     if (cell.cellType != CELLTYPE_SEED) { // only seeds

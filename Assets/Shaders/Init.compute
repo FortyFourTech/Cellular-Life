@@ -66,6 +66,10 @@ void CleanCells(uint3 id : SV_DispatchThreadID)
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
     _CellsRW[cellIdx] = (Cell)0;
+
+    _KillCells[cellIdx] = 0;
+    _Debug[cellIdx] = uint2(0,0);
+    _CommandBuffer[cellIdx] = (CommandEntry)0;
 }
 
 [numthreads(64,1,1)]

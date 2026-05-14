@@ -18,7 +18,7 @@ Cell cell = _CellsRO[cellIdx]; \
 float2 soil = _SoilTexRO[cellPos];
 
 #define READ_NEIGHBOR_CELL(pos, dir) \
-uint2 neighborPos = ShiftCoord(cellPos, dir); \
+uint2 neighborPos = ShiftCoord(pos, dir); \
 uint neighborIdx = PosToIdx(neighborPos); \
 Cell neighborCell = _CellsRO[neighborIdx];
 
