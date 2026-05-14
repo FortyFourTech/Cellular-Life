@@ -179,12 +179,16 @@ uint ChooseGrowType(uint geneParam) {
 bool CommandGrow(uint2 cellPos, uint cellIdx, Cell cell) {
     uint growDirections = _Genomes[cell.genomeId].genes[cell.activeGene].growDirections;
 
+    uint growNum = 0;
     // unpack directions
     uint directionTypes[4];
-    directionTypes[0] = ChooseGrowType(UnpackInt1(growDirections));
-    directionTypes[1] = ChooseGrowType(UnpackInt2(growDirections));
-    directionTypes[2] = ChooseGrowType(UnpackInt3(growDirections));
-    directionTypes[3] = ChooseGrowType(UnpackInt4(growDirections));
+    for (int i=0; i < 4; ++i) {
+        directionTypes[i] = ChooseGrowType(GetIntByte(growDirections, i));
+        growNum += directionTypes[i] > 0;
+    }
+
+    if (growNum == 0) return true;
+    if (cell.energy < (ENERGY_GROW * (growNum+1))) return false;
 
     uint cellDir = cell.direction;
     bool growed = false;
@@ -194,15 +198,12 @@ bool CommandGrow(uint2 cellPos, uint cellIdx, Cell cell) {
         uint createDir = RotateDir(i, cellDir);
         uint2 targetCoord = ShiftCoord(cellPos, createDir);
         uint targetIdx = PosToIdx(targetCoord);
-        if (typeToCreate == 0 || typeToCreate == CELLTYPE_WOOD || typeToCreate > CELLTYPE_SEED
-            || cell.energy < ENERGY_GROW
+        if (typeToCreate == 0
             || _CellsRW[targetIdx].cellType != 0
         ) continue;
 
-        // has enough energy?
         Cell newCell = CreateCell(targetCoord, typeToCreate, createDir, RotateDir(createDir, DIR_B), cell.genomeId);
-        // _CellsRO[targetIdx].energy = cell.energy / 2.0;
-        // _CellsRO[cellIdx].energy -= ENERGY_GROW; // TODO: return this
+        cell.energy -= ENERGY_GROW;
         SetIntBit(cell.energyFlow, typeToCreate == CELLTYPE_SPROUT || typeToCreate == CELLTYPE_SEED, createDir);
         _CellsRW[targetIdx] = newCell;
 
@@ -214,8 +215,6 @@ bool CommandGrow(uint2 cellPos, uint cellIdx, Cell cell) {
     // make a wood from itself
     ConvertToWood(cell);
     _CellsRW[cellIdx] = cell;
-
-    // define transport direction!
 
     return true;
 }
