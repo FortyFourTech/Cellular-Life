@@ -1100,6 +1100,7 @@ MonoBehaviour:
   _genomeStorage: {fileID: 11400000, guid: 6f61eeab8d72f634e845ed54ecf76f5a, type: 2}
   isPaused: 1
   simulationSpeed: 1
+  executeSubstep: 0
   cellEnergyCost: 0.005
   activeBrush: 0
   brushRadius: 4
@@ -1575,7 +1576,6 @@ MonoBehaviour:
   soilMaterial: {fileID: 2100000, guid: 5f475d57bb2e03a4a98c6e04ea2bc55a, type: 2}
   energyMaterial: {fileID: 2100000, guid: 841179f692e9cff4fb5132e58def43c0, type: 2}
   worldMaterial: {fileID: 2100000, guid: 4b825846d257b5244b94bd28a04f3186, type: 2}
-  worldRT: {fileID: 8400000, guid: cb975d30355b06742becaa6a85f6bf3a, type: 2}
   renderMode: 0
 --- !u!1 &1029936829
 GameObject:
