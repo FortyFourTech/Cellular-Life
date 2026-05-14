@@ -46,7 +46,7 @@ struct Cell {
 struct CellInfo {
     Cell cell;
     float2 soil;
-    uint2 pad01;
+    uint2 debug;
 };
 
 struct Gene {
@@ -75,3 +75,23 @@ struct CommandEntry {
     uint failGene;
     uint pad0;
 };
+
+struct SimStats
+{
+    uint cellsCount;
+    uint leafsCount;
+    uint rootsCount;
+    uint antennasCount;
+    uint woodCount;
+    uint sproutsCount;
+    uint seedsCount;
+    float cellEnergy;
+    float soilOrganics;
+    float soilEnergy;
+    uint2 pad01;
+};
+
+// Размер группы
+#define GROUP_SIZE 16
+// Размер кэша с учетом соседей со всех сторон (+1 слева, +1 справа...)
+#define CACHE_SIZE (GROUP_SIZE + 2)

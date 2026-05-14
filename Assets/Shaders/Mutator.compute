@@ -119,6 +119,7 @@ void CopyCellKernel(uint3 id : SV_DispatchThreadID)
     if (idx >= _Width * _Height) return;
     _SingleCellOut[0].cell = _CellsRO[idx];
     _SingleCellOut[0].soil = _SoilTexRO[IdxToPos(idx)];
+    _SingleCellOut[0].debug = _Debug[idx];
 }
 
 // Copy a single genome from _Genomes[_RequestedGenomeIdx] into _SingleGenomeOut[0]

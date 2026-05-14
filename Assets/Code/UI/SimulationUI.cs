@@ -47,6 +47,7 @@ public class SimulationUI : MonoBehaviour
     bool haveInspectedCell = false;
     CellData inspectedCell;
     Vector2 inspectedSoil;
+    Vector2Int inspectedDebug;
     GenomeData inspectedGenome;
     CommandEntry inspectedCommand;
     string genomeReadError = "";
@@ -219,10 +220,16 @@ public class SimulationUI : MonoBehaviour
         GUILayout.Label("Debug / Quick Stats", GUI.skin.label);
         if (world != null)
         {
-            var total = CountCells();
-            var leaves = CountCellsByType(1);
-            GUILayout.Label($"Total cells: {total}");
-            GUILayout.Label($"Leaves: {leaves}");
+            GUILayout.Label($"Total cells: {world.Stats.cellsCount}");
+            GUILayout.Label($"{CellType.Leaf.Symbol()}: {world.Stats.leafsCount}");
+            GUILayout.Label($"{CellType.Root.Symbol()}: {world.Stats.rootsCount}");
+            GUILayout.Label($"{CellType.Antenna.Symbol()}: {world.Stats.antennasCount}");
+            GUILayout.Label($"{CellType.Wood.Symbol()}: {world.Stats.woodCount}");
+            GUILayout.Label($"{CellType.Sprout.Symbol()}: {world.Stats.sproutsCount}");
+            GUILayout.Label($"{CellType.Seed.Symbol()}: {world.Stats.seedsCount}");
+            GUILayout.Label($"Cell energy: {world.Stats.cellEnergy}");
+            GUILayout.Label($"Soil organics: {world.Stats.soilOrganics}");
+            GUILayout.Label($"Soil energy: {world.Stats.soilEnergy}");
         }
 
         GUILayout.EndScrollView();
@@ -258,6 +265,7 @@ public class SimulationUI : MonoBehaviour
 
         GUILayout.Label($"Grid: {gx}, {gy}");
         GUILayout.Label($"Soil [{inspectedSoil.x};{inspectedSoil.y}]");
+        GUILayout.Label($"Debug [{inspectedDebug.x};{inspectedDebug.y}]");
 
         ReadCommandFromGpu(gx, gy);
         GUILayout.Label($"Last cell command: [{inspectedCommand.commandId}]({inspectedCommand.successGene},{inspectedCommand.failGene})");
@@ -478,6 +486,8 @@ public class SimulationUI : MonoBehaviour
             inspectedCell = cell.cell;
             inspectedSoil.x = cell.soilOrg;
             inspectedSoil.y = cell.soilNrg;
+            inspectedDebug.x = (int)cell.debug0;
+            inspectedDebug.y = (int)cell.debug1;
             inspectedGenome = genome;
             haveInspectedCell = inspectedCell.cellType > 0;
             if (haveInspectedCell)
@@ -569,22 +579,6 @@ public class SimulationUI : MonoBehaviour
             if (activeBrush == BrushMode.KillCell) world.RunKillNow();
             if (activeBrush == BrushMode.SetCell) world.RunSetCellNow();
         } catch { }
-    }
-
-    uint CountCells()
-    {
-        if (world == null) return 0;
-        return world.CellsNum;
-    }
-
-    uint CountCellsByType(uint type)
-    {
-        if (world == null) return 0;
-        return type switch
-        {
-            1 => world.LeavesNum,
-            _ => 0,
-        };
     }
 
     uint GetByte(uint container, int byteIdx)

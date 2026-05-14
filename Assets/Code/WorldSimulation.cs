@@ -22,6 +22,7 @@ public class WorldSimulation : MonoBehaviour
     GraphicsBuffer killBuffer;
     GraphicsBuffer commandBuffer;
     GraphicsBuffer statsBuffer;
+    GraphicsBuffer debugBuffer;
 
     int kernelEnergyIdx;
     int kernelLeafIdx;
@@ -45,7 +46,7 @@ public class WorldSimulation : MonoBehaviour
     int kernelCopyGenomeIdx = -1;
     int kernelCopyCommandIdx = -1;
 
-    uint[] stats;
+    SimStats stats;
 
     // mutator buffers and pending lists
     GraphicsBuffer organicsDeltaBuffer;
@@ -77,8 +78,7 @@ public class WorldSimulation : MonoBehaviour
 
     public uint SubstepIdx => (uint)_substepIdx;
 
-    public uint CellsNum => stats[0];
-    public uint LeavesNum => stats[1];
+    public SimStats Stats => stats;
 
     private int _substepIdx = 0;
     private const int _substeps = 12;
@@ -135,11 +135,14 @@ public class WorldSimulation : MonoBehaviour
         killBuffer = new (GraphicsBuffer.Target.Structured, cellsCapacity, 4);
         Shader.SetGlobalBuffer("_KillCells", killBuffer);
 
-        statsBuffer = new (GraphicsBuffer.Target.Structured, 4, sizeof(uint));
+        statsBuffer = new (GraphicsBuffer.Target.Structured, 1, System.Runtime.InteropServices.Marshal.SizeOf(typeof(SimStats)));
         // zero stats
-        stats = new uint[4];
-        statsBuffer.SetData(stats);
+        stats = new SimStats();
+        statsBuffer.SetData(new SimStats[]{stats});
         Shader.SetGlobalBuffer("_Stats", statsBuffer);
+
+        debugBuffer = new (GraphicsBuffer.Target.Structured, cellsCapacity, 8);
+        Shader.SetGlobalBuffer("_Debug", debugBuffer);
 
         // set constants
         simParamsBuffer = new ConstantBuffer<SimParams>();
@@ -274,9 +277,7 @@ public class WorldSimulation : MonoBehaviour
             Debug.LogError($"Failed to apply genomes from GenomeStorage: {ex.Message}");
         }
 
-        stats = new uint[4];
-        statsBuffer.SetData(stats);
-        cb.DispatchCompute(simulationShader, kernelStatsIdx, cx, cy, 1);
+        cb.DispatchCompute(simulationShader, kernelStatsIdx, 1, 1, 1);
 
         // get data (stats only). Avoid full-buffer readbacks here because they are
         // expensive. Use `RequestCellAndGenome(x,y, callback)` to read a single cell
@@ -288,11 +289,11 @@ public class WorldSimulation : MonoBehaviour
                 return;
             }
 
-            var data = request.GetData<uint>();
+            var data = request.GetData<SimStats>();
 
             // Debug.Log(Data[63].value);
             // submit updated date
-            stats = data.ToArray();
+            stats = data[0];
         });
 
         Graphics.ExecuteCommandBuffer(cb);
@@ -681,9 +682,7 @@ public class WorldSimulation : MonoBehaviour
                 _cellsBuffer.Sync(cb);
                 break;
             case 11: // stats
-                stats = new uint[4];
-                statsBuffer.SetData(stats);
-                cb.DispatchCompute(simulationShader, kernelStatsIdx, cx, cy, 1);
+                cb.DispatchCompute(simulationShader, kernelStatsIdx, 1, 1, 1);
                 cb.RequestAsyncReadback(statsBuffer, request =>
                 {
                     if (request.hasError) {
@@ -691,8 +690,8 @@ public class WorldSimulation : MonoBehaviour
                         return;
                     }
 
-                    var data = request.GetData<uint>();
-                    stats = data.ToArray();
+                    var data = request.GetData<SimStats>();
+                    stats = data[0];
                 });
                 break;
         }

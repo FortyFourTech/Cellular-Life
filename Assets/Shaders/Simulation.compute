@@ -13,7 +13,7 @@
 #include "Defines.hlsl"
 #include "CommonParams.hlsl"
 
-RWStructuredBuffer<uint> _Stats; // small stats buffer
+RWStructuredBuffer<SimStats> _Stats; // small stats buffer
 
 #include "Common.hlsl"
 // #include "CellBehavior.hlsl"
@@ -334,14 +334,62 @@ void SeedKernel(uint3 id : SV_DispatchThreadID)
     }
 }
 
-[numthreads(8,8,1)]
-void StatsKernel(uint3 id : SV_DispatchThreadID)
+#define THREADS_COUNT 512
+groupshared SimStats localBuffer[THREADS_COUNT]; // Займет 20 КБ
+
+[numthreads(THREADS_COUNT,1,1)]
+void StatsKernel(uint3 threadId : SV_DispatchThreadID, uint threadGroupIdx : SV_GroupIndex, uint3 groupID : SV_GroupID)
 {
-    uint cellIdx = PosToIdx(id.xy);
-    Cell c = _CellsRO[cellIdx];
-    // InterlockedAdd(_Stats[0], 1);
-    InterlockedAdd(_Stats[0], c.cellType != 0 ? 1 : 0);
-    InterlockedAdd(_Stats[1], c.cellType == CELLTYPE_LEAF ? 1 : 0);
-    // _Stats[0] = totalCells;
-    // _Stats[1] = leafCount;
+    SimStats accumulator = (SimStats)0;
+
+    // Шаг 1: Сбор данных из глобальной памяти
+    for (uint i = threadGroupIdx; i < _CellsRO.Length; i += THREADS_COUNT)
+    {
+        Cell cell = _CellsRO[i];
+        float2 soil = _SoilTexRO[IdxToPos(i)];
+
+        uint cellType = cell.cellType;
+
+        accumulator.cellsCount += cellType != 0 ? 1 : 0;
+        accumulator.leafsCount += cellType == CELLTYPE_LEAF ? 1 : 0;
+        accumulator.rootsCount += cellType == CELLTYPE_ROOT ? 1 : 0;
+        accumulator.antennasCount += cellType == CELLTYPE_ANTENNA ? 1 : 0;
+        accumulator.woodCount += cellType == CELLTYPE_WOOD ? 1 : 0;
+        accumulator.sproutsCount += cellType == CELLTYPE_SPROUT ? 1 : 0;
+        accumulator.seedsCount += cellType == CELLTYPE_SEED ? 1 : 0;
+
+        accumulator.cellEnergy += cell.energy;
+        accumulator.soilOrganics += soil.x;
+        accumulator.soilEnergy += soil.y;
+    }
+
+    localBuffer[threadGroupIdx] = accumulator;
+
+    GroupMemoryBarrierWithGroupSync();
+
+    // Шаг 2: Древовидное сложение структуры
+    for (uint stride = THREADS_COUNT / 2; stride > 0; stride /= 2)
+    {
+        if (threadGroupIdx < stride)
+        {
+            // Покомпонентно складываем поля структуры
+            localBuffer[threadGroupIdx].cellsCount += localBuffer[threadGroupIdx + stride].cellsCount;
+            localBuffer[threadGroupIdx].leafsCount += localBuffer[threadGroupIdx + stride].leafsCount;
+            localBuffer[threadGroupIdx].rootsCount += localBuffer[threadGroupIdx + stride].rootsCount;
+            localBuffer[threadGroupIdx].antennasCount += localBuffer[threadGroupIdx + stride].antennasCount;
+            localBuffer[threadGroupIdx].woodCount += localBuffer[threadGroupIdx + stride].woodCount;
+            localBuffer[threadGroupIdx].sproutsCount += localBuffer[threadGroupIdx + stride].sproutsCount;
+            localBuffer[threadGroupIdx].seedsCount += localBuffer[threadGroupIdx + stride].seedsCount;
+            localBuffer[threadGroupIdx].cellEnergy += localBuffer[threadGroupIdx + stride].cellEnergy;
+            localBuffer[threadGroupIdx].soilOrganics += localBuffer[threadGroupIdx + stride].soilOrganics;
+            localBuffer[threadGroupIdx].soilEnergy += localBuffer[threadGroupIdx + stride].soilEnergy;
+        }
+        GroupMemoryBarrierWithGroupSync();
+    }
+
+    // Шаг 3: Запись итоговой структуры
+    if (threadGroupIdx == 0)
+    {
+        _Stats[0] = localBuffer[0];
+    }
 }

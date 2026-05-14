@@ -27,8 +27,8 @@ public struct CellInfo {
     public CellData cell;
     public float soilOrg;
     public float soilNrg;
-    uint pad0;
-    uint pad1;
+    public uint debug0;
+    public uint debug1;
 }
 
 public struct Gene {
@@ -138,4 +138,20 @@ public struct CommandEntry {
     public uint successGene;
     public uint failGene;
     uint pad0;
+};
+
+public struct SimStats
+{
+    public uint cellsCount;
+    public uint leafsCount;
+    public uint rootsCount;
+    public uint antennasCount;
+    public uint woodCount;
+    public uint sproutsCount;
+    public uint seedsCount;
+    public float cellEnergy;
+    public float soilOrganics;
+    public float soilEnergy;
+    uint pad0;
+    uint pad1;
 };

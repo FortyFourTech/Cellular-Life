@@ -27,3 +27,4 @@ RWStructuredBuffer<Cell> _CellsRW;
 RWStructuredBuffer<Genome> _Genomes; // packed genomes
 RWStructuredBuffer<CommandEntry> _CommandBuffer;
 RWStructuredBuffer<bool> _KillCells;
+RWStructuredBuffer<uint2> _Debug;
