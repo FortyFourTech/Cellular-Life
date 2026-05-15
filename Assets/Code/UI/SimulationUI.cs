@@ -203,10 +203,6 @@ public class SimulationUI : MonoBehaviour
         brushDelta = GUILayout.HorizontalSlider(brushDelta, -1f, 1f);
         GUILayout.Label($"Brush cell type: {brushCellType:F1}");
         brushCellType = GUILayout.HorizontalSlider(brushCellType, 1f, 6f);
-        GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Use Brush (Hold)")) { /* placeholder: handled via mouse events */ }
-        if (GUILayout.Button("Clear Brush")) { /* stub */ }
-        GUILayout.EndHorizontal();
 
         GUILayout.Space(6);
         GUILayout.Label("Visualization", GUI.skin.label);
@@ -308,7 +304,10 @@ public class SimulationUI : MonoBehaviour
 
         GUILayout.Label($"Grid: {gx}, {gy}");
         GUILayout.Label($"Soil [{inspectedSoil.x};{inspectedSoil.y}]");
+
+#if DEVELOPMENT_BUILD
         GUILayout.Label($"Debug [{inspectedDebug.x};{inspectedDebug.y}]");
+#endif // DEVELOPMENT_BUILD
 
         ReadCommandFromGpu(gx, gy);
         GUILayout.Label($"Last cell command: [{inspectedCommand.commandId}]({inspectedCommand.successGene},{inspectedCommand.failGene})");
@@ -317,7 +316,9 @@ public class SimulationUI : MonoBehaviour
         // read cell from GPU
         ReadCellFromGpu(gx, gy);
 
+#if DEVELOPMENT_BUILD
         showInvalidCell = GUILayout.Toggle(showInvalidCell, "Show invalid cell");
+#endif // DEVELOPMENT_BUILD
 
         if (!haveInspectedCell && !showInvalidCell)
         {
