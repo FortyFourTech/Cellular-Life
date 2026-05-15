@@ -44,6 +44,7 @@ Material:
     - _Width: 768
     m_Floats:
     - _EnableExternalAlpha: 0
+    - _IndividualCellsRenderSize: 5
     - _RenderIndividualCells: 1
     - _ZWrite: 0
     - _ZoomLvl: 1

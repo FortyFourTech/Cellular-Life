@@ -6,9 +6,8 @@ Shader "Simulation/WorldOut"
         _Width("Width", Integer) = 1024
         _Height("Height", Integer) = 1024
 
-        _ZoomLvl("Zoom level", Float) = 1.0
-        _Offset("Offset", Color) = (0.0,0.0,0.0,0.0)
-        _RenderIndividualCells("Render individual cells", Range(0,1)) = 0.0
+        // _RenderIndividualCells("Render individual cells", Range(0,1)) = 0.0
+        _IndividualCellsRenderSize("Minimal cell size to render individual cells", Float) = 1.0
     }
     SubShader
     {
@@ -25,13 +24,13 @@ Shader "Simulation/WorldOut"
             #include "Defines.hlsl"
 
             sampler2D _MainTex;
+            float4 _MainTex_TexelSize;
 
             int _Width;
             int _Height;
 
-            float _ZoomLvl;
-            fixed4 _Offset;
-            float _RenderIndividualCells;
+            // float _RenderIndividualCells;
+            float _IndividualCellsRenderSize;
 
             StructuredBuffer<Cell> _CellsRO;
 
@@ -47,44 +46,59 @@ Shader "Simulation/WorldOut"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                fixed4 texVal = tex2D(_MainTex, i.uv); // x organics, y energy
+                fixed4 texVal = tex2D(_MainTex, i.uv);
+                fixed4 col = texVal;
 
-                float2 pixelPos = floor(i.uv * float2(_Width, _Height)) % float2(_Width,_Height);
-                uint cellIdx = (uint)pixelPos.y * (uint)_Width + (uint)pixelPos.x;
-                Cell cellData = _CellsRO[cellIdx];
+                float2 uvDelta = float2(ddx(i.uv.x), ddy(i.uv.y));
 
-                // return float4(1,0,0,1);
-                // float2 cellBL = float2(
-                //     floor(i.uv.x * _Width) / _Width,
-                //     floor(i.uv.y * _Height) / _Height
-                // );
-                // float2 cellTR = float2(
-                //     ceil(i.uv.x * _Width) / _Width,
-                //     ceil(i.uv.y * _Height) / _Height
-                // );
-                float2 cellUV = float2(
-                    frac(i.uv.x * (float)_Width),
-                    frac(i.uv.y * (float)_Height)
-                );
+                float2 texturePixelsPerScreenPixel = abs(uvDelta) * _MainTex_TexelSize.zw;
 
-                fixed4 individualVal = fixed4(0,0,0,1);
-                for (int dir = 0; dir < 4; ++dir) {
-                    bool outFlow = GetIntBit(cellData.energyFlow, dir);
-                    READ_NEIGHBOR_CELL(pixelPos, dir);
+                float cellSizeX = 1 / texturePixelsPerScreenPixel.x;
+                float cellSizeY = 1 / texturePixelsPerScreenPixel.y;
+                float cellSize = min(cellSizeX, cellSizeY);
 
-                    uint neighborFlow = neighborCell.energyFlow;
-                    bool inFlow = GetIntBit(neighborFlow, RotateDir(dir, DIR_B));
+                bool renderIndividualCells = cellSize >= _IndividualCellsRenderSize;
 
-                    if (outFlow || inFlow) {
-                        individualVal = RenderLine(cellUV, individualVal, fixed4(0.25,0.25,0.25,1.0), 0.35, dir);
+                if (renderIndividualCells) {
+                    float2 pixelPos = floor(i.uv * float2(_Width, _Height)) % float2(_Width,_Height);
+                    uint cellIdx = (uint)pixelPos.y * (uint)_Width + (uint)pixelPos.x;
+                    Cell cellData = _CellsRO[cellIdx];
+
+                    // return float4(1,0,0,1);
+                    // float2 cellBL = float2(
+                    //     floor(i.uv.x * _Width) / _Width,
+                    //     floor(i.uv.y * _Height) / _Height
+                    // );
+                    // float2 cellTR = float2(
+                    //     ceil(i.uv.x * _Width) / _Width,
+                    //     ceil(i.uv.y * _Height) / _Height
+                    // );
+                    float2 cellUV = float2(
+                        frac(i.uv.x * (float)_Width),
+                        frac(i.uv.y * (float)_Height)
+                    );
+
+                    fixed4 individualVal = fixed4(0,0,0,1);
+                    for (int dir = 0; dir < 4; ++dir) {
+                        bool outFlow = GetIntBit(cellData.energyFlow, dir);
+                        READ_NEIGHBOR_CELL(pixelPos, dir);
+
+                        uint neighborFlow = neighborCell.energyFlow;
+                        bool inFlow = GetIntBit(neighborFlow, RotateDir(dir, DIR_B));
+
+                        if (outFlow || inFlow) {
+                            individualVal = RenderLine(cellUV, individualVal, fixed4(0.25,0.25,0.25,1.0), 0.35, dir);
+                        }
                     }
+                    fixed4 shape = RenderCell(cellUV, individualVal, texVal, cellData.cellType, cellData.direction);
+                    col = lerp(texVal, shape, saturate(cellData.cellType));
                 }
-                fixed4 shape = RenderCell(cellUV, individualVal, texVal, cellData.cellType, cellData.direction);
                 // return float4(cellUV.xy,0,1);
                 // return float4(cellCenter,0,1);
                 // return val * float4(1,0,0,1);
-                return lerp(texVal, shape, saturate(cellData.cellType) * _RenderIndividualCells);
+                // return lerp(texVal, shape, saturate(cellData.cellType) * _RenderIndividualCells);
                 // return float4(1,1,1,1);
+                return col;
             }
             ENDCG
         }
