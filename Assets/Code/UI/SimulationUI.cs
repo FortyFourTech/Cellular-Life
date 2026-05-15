@@ -161,8 +161,17 @@ public class SimulationUI : MonoBehaviour
 #endif
     }
 
+    private void _Tooltip(string text) {
+        Rect labelRect = GUILayoutUtility.GetLastRect();
+        Vector2 mousePosGUI = Event.current.mousePosition;
+        if (labelRect.Contains(mousePosGUI))
+            _currentTooltip = text;
+    }
+
+    private string _currentTooltip = "";
     void OnGUI()
     {
+        _currentTooltip = "";
         const float pad = 8f;
         float w = 320f;
         GUILayout.BeginArea(new Rect(pad, pad, w, Screen.height - pad*2), GUI.skin.box);
@@ -170,16 +179,24 @@ public class SimulationUI : MonoBehaviour
 
         GUILayout.Label("Simulation Controls", GUI.skin.label);
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button(new GUIContent(isPaused ? "Resume" : "Pause", isPaused ? "[Ctrl]+[Space]" : "[Space]"))) { isPaused = !isPaused; }
-        if (isPaused)
-            if (GUILayout.Button(new GUIContent("Step", "[Space]"))) { StepOnce(); }
+        if (GUILayout.Button(isPaused ? "Resume" : "Pause")) { isPaused = !isPaused; }
+        _Tooltip(isPaused ? "[Ctrl]+[Space]" : "[Space]");
+
+        if (isPaused){
+            if (GUILayout.Button("Step")) { StepOnce(); }
+            _Tooltip("[Space]");
+        }
         GUILayout.EndHorizontal();
+
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("Generate")) { Generate(); }
         if (GUILayout.Button("Populate")) { Populate(); }
-        if (GUILayout.Button(new GUIContent("Restart", "[R]"))) { Generate(); Populate(); }
+        if (GUILayout.Button("Restart")) { Generate(); Populate(); }
+        _Tooltip("[R]");
         GUILayout.EndHorizontal();
-        GUILayout.Label(new GUIContent($"Speed: {simulationSpeed:F2}", "[Ctrl] + MouseWheel"));
+
+        GUILayout.Label($"Speed: {simulationSpeed:F2}");
+        _Tooltip("[Ctrl] + MouseWheel");
         simulationSpeed = GUILayout.HorizontalSlider(simulationSpeed, 0.01f, 1f);
         if (isPaused)
             executeSubstep = GUILayout.Toggle(executeSubstep, $"Execute Sim Substep ({world.SubstepIdx})");
@@ -197,7 +214,8 @@ public class SimulationUI : MonoBehaviour
         GUILayout.Space(6);
         GUILayout.Label("Brush / Tools", GUI.skin.label);
         activeBrush = (BrushMode)GUILayout.SelectionGrid((int)activeBrush, Enum.GetNames(typeof(BrushMode)), 2);
-        GUILayout.Label(new GUIContent($"Brush radius: {brushRadius:F1}", "[Shift] + MouseWheel"));
+        GUILayout.Label($"Brush radius: {brushRadius:F1}");
+        _Tooltip("[Shift] + MouseWheel");
         brushRadius = GUILayout.HorizontalSlider(brushRadius, 10f, 100f);
         GUILayout.Label($"Brush delta: {brushDelta:F1}");
         brushDelta = GUILayout.HorizontalSlider(brushDelta, -1f, 1f);
@@ -206,8 +224,18 @@ public class SimulationUI : MonoBehaviour
 
         GUILayout.Space(6);
         GUILayout.Label("Visualization", GUI.skin.label);
-        GUIContent[] renderModes = Enum.GetNames(typeof(WorldRenderer.RenderMode)).Select((x,idx) => new GUIContent(x, $"[{idx+1}]")).ToArray();
-        activeRenderMode = (WorldRenderer.RenderMode)GUILayout.SelectionGrid((int)activeRenderMode, renderModes, 2);
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button(Enum.GetName(typeof(WorldRenderer.RenderMode), WorldRenderer.RenderMode.CellsFull))) { activeRenderMode = WorldRenderer.RenderMode.CellsFull; }
+        _Tooltip("[1]");
+        if (GUILayout.Button(Enum.GetName(typeof(WorldRenderer.RenderMode), WorldRenderer.RenderMode.CellsEnergy))) { activeRenderMode = WorldRenderer.RenderMode.CellsFull; }
+        _Tooltip("[2]");
+        GUILayout.EndHorizontal();
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button(Enum.GetName(typeof(WorldRenderer.RenderMode), WorldRenderer.RenderMode.SoilOrganics))) { activeRenderMode = WorldRenderer.RenderMode.CellsFull; }
+        _Tooltip("[3]");
+        if (GUILayout.Button(Enum.GetName(typeof(WorldRenderer.RenderMode), WorldRenderer.RenderMode.SoilEnergy))) { activeRenderMode = WorldRenderer.RenderMode.CellsFull; }
+        _Tooltip("[4]");
+        GUILayout.EndHorizontal();
         // showEnergyFlow = GUILayout.Toggle(showEnergyFlow, "Show Energy Flow");
         wRenderer.SetRenderMode(activeRenderMode);
 
@@ -244,9 +272,9 @@ public class SimulationUI : MonoBehaviour
 
         DrawCellInspectorPanel();
 
-        if (!string.IsNullOrEmpty(GUI.tooltip)) {
+        if (!string.IsNullOrEmpty(_currentTooltip)) {
             Vector2 mousePos = Input.mousePosition; // Event.current.mousePosition;
-            GUI.Box(new Rect(mousePos.x + 16f, Screen.height - mousePos.y - 16f, 150f, 25f), GUI.tooltip);
+            GUI.Box(new Rect(mousePos.x + 16f, Screen.height - mousePos.y - 16f, 150f, 25f), _currentTooltip);
         }
 
         if (activeBrush != BrushMode.None && world != null)
