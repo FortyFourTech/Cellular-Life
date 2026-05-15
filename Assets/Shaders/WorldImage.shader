@@ -49,7 +49,7 @@ Shader "Simulation/WorldOut"
             {
                 fixed4 texVal = tex2D(_MainTex, i.uv); // x organics, y energy
 
-                float2 pixelPos = floor(i.uv * float2(_Width, _Height));
+                float2 pixelPos = floor(i.uv * float2(_Width, _Height)) % float2(_Width,_Height);
                 uint cellIdx = (uint)pixelPos.y * (uint)_Width + (uint)pixelPos.x;
                 Cell cellData = _CellsRO[cellIdx];
 
@@ -80,7 +80,7 @@ Shader "Simulation/WorldOut"
                     }
                 }
                 fixed4 shape = RenderCell(cellUV, individualVal, texVal, cellData.cellType, cellData.direction);
-                // return float4(i.uv.xy,0,1);
+                // return float4(cellUV.xy,0,1);
                 // return float4(cellCenter,0,1);
                 // return val * float4(1,0,0,1);
                 return lerp(texVal, shape, saturate(cellData.cellType) * _RenderIndividualCells);
