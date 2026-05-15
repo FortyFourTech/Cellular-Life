@@ -104,7 +104,7 @@ public class SimulationUI : MonoBehaviour
             activeRenderMode = WorldRenderer.RenderMode.SoilEnergy;
         }
 
-        if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.R)) { Generate(); Populate(); }
+        if (Input.GetKeyDown(KeyCode.R)) { Generate(); Populate(); }
 
         // Ctrl + mouse wheel changes simulation speed (approx)
         if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))
@@ -177,7 +177,7 @@ public class SimulationUI : MonoBehaviour
         GUILayout.BeginHorizontal();
         if (GUILayout.Button("Generate")) { Generate(); }
         if (GUILayout.Button("Populate")) { Populate(); }
-        if (GUILayout.Button(new GUIContent("Restart", "[Ctrl]+[R]"))) { Generate(); Populate(); }
+        if (GUILayout.Button(new GUIContent("Restart", "[R]"))) { Generate(); Populate(); }
         GUILayout.EndHorizontal();
         GUILayout.Label(new GUIContent($"Speed: {simulationSpeed:F2}", "[Ctrl] + MouseWheel"));
         simulationSpeed = GUILayout.HorizontalSlider(simulationSpeed, 0.01f, 1f);
