@@ -272,7 +272,7 @@ bool CommandAttach(uint2 cellPos, uint cellIdx, Cell cell) {
     return true;
 }
 bool CommandExtractOrganics(uint2 cellPos, uint cellIdx, Cell cell) {
-    float2 soil = _SoilTexRW[cellPos];
+    float2 soil = _SoilTexRO[cellPos];
     float localOrganics = soil.x;
     float produced = min(localOrganics, ABSORB_SOIL_ORGANICS * _Timestep);
     cell.energy += produced;
