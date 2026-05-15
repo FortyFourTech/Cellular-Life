@@ -6,7 +6,7 @@ Shader "Simulation/WorldOut"
         _Width("Width", Integer) = 1024
         _Height("Height", Integer) = 1024
 
-        // _RenderIndividualCells("Render individual cells", Range(0,1)) = 0.0
+        _RenderIndividualCells("Render individual cells", Range(0,1)) = 0.0
         _IndividualCellsRenderSize("Minimal cell size to render individual cells", Float) = 1.0
     }
     SubShader
@@ -29,7 +29,7 @@ Shader "Simulation/WorldOut"
             int _Width;
             int _Height;
 
-            // float _RenderIndividualCells;
+            float _RenderIndividualCells;
             float _IndividualCellsRenderSize;
 
             StructuredBuffer<Cell> _CellsRO;
@@ -91,7 +91,7 @@ Shader "Simulation/WorldOut"
                         }
                     }
                     fixed4 shape = RenderCell(cellUV, individualVal, texVal, cellData.cellType, cellData.direction);
-                    col = lerp(texVal, shape, saturate(cellData.cellType));
+                    col = lerp(texVal, shape, saturate(cellData.cellType) * _RenderIndividualCells);
                 }
                 // return float4(cellUV.xy,0,1);
                 // return float4(cellCenter,0,1);

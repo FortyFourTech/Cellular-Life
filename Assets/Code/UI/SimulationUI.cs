@@ -204,7 +204,7 @@ public class SimulationUI : MonoBehaviour
         GUIContent[] renderModes = Enum.GetNames(typeof(WorldRenderer.RenderMode)).Select((x,idx) => new GUIContent(x, $"[{idx+1}]")).ToArray();
         activeRenderMode = (WorldRenderer.RenderMode)GUILayout.SelectionGrid((int)activeRenderMode, renderModes, 2);
         // showEnergyFlow = GUILayout.Toggle(showEnergyFlow, "Show Energy Flow");
-        wRenderer.renderMode = activeRenderMode;
+        wRenderer.SetRenderMode(activeRenderMode);
 
         // GUILayout.Space(6);
         // GUILayout.Label("Genetics / Mutation", GUI.skin.label);

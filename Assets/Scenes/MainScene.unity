@@ -1095,7 +1095,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SimulationUI
   world: {fileID: 852852090}
-  wRenderer: {fileID: 1011163767}
+  wRenderer: {fileID: 1546149281}
   panZoom: {fileID: 1546149278}
   _genomeStorage: {fileID: 11400000, guid: 6f61eeab8d72f634e845ed54ecf76f5a, type: 2}
   isPaused: 1
@@ -1536,7 +1536,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1011163765}
-  - component: {fileID: 1011163767}
   m_Layer: 0
   m_Name: Renderer
   m_TagString: Untagged
@@ -1559,24 +1558,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 331330963}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1011163767
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1011163764}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 61db6656bbd0d374cab85c0ed47ded56, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WorldRenderer
-  imageRenderer: {fileID: 1546149280}
-  world: {fileID: 852852090}
-  soilMaterial: {fileID: 2100000, guid: 5f475d57bb2e03a4a98c6e04ea2bc55a, type: 2}
-  energyMaterial: {fileID: 2100000, guid: 841179f692e9cff4fb5132e58def43c0, type: 2}
-  worldMaterial: {fileID: 2100000, guid: 4b825846d257b5244b94bd28a04f3186, type: 2}
-  renderMode: 0
 --- !u!1 &1029936829
 GameObject:
   m_ObjectHideFlags: 0
@@ -2257,6 +2238,7 @@ GameObject:
   - component: {fileID: 1546149280}
   - component: {fileID: 1546149278}
   - component: {fileID: 1546149279}
+  - component: {fileID: 1546149281}
   m_Layer: 5
   m_Name: WorldVis
   m_TagString: Untagged
@@ -2350,6 +2332,23 @@ MonoBehaviour:
     y: 0
     width: 1
     height: 1
+--- !u!114 &1546149281
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1546149274}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61db6656bbd0d374cab85c0ed47ded56, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldRenderer
+  world: {fileID: 852852090}
+  soilMaterial: {fileID: 2100000, guid: 5f475d57bb2e03a4a98c6e04ea2bc55a, type: 2}
+  energyMaterial: {fileID: 2100000, guid: 841179f692e9cff4fb5132e58def43c0, type: 2}
+  worldMaterial: {fileID: 2100000, guid: 4b825846d257b5244b94bd28a04f3186, type: 2}
+  renderMode: 0
 --- !u!1 &1815842699
 GameObject:
   m_ObjectHideFlags: 0

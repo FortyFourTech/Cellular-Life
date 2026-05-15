@@ -1,21 +1,19 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class WorldRenderer : MonoBehaviour
+[RequireComponent(typeof(RawImage))]
+public class WorldRenderer : MonoBehaviour, IMaterialModifier
 {
-    public RawImage imageRenderer;
     public WorldSimulation world;
     public Material soilMaterial;
     public Material energyMaterial;
     public Material worldMaterial;
 
     public enum RenderMode { CellsFull, CellsEnergy, SoilOrganics, SoilEnergy };
-    public RenderMode renderMode = RenderMode.CellsFull;
 
-    Mesh quadMesh;
-    ComputeBuffer readBuffer;
+    RenderMode _renderMode = RenderMode.CellsFull;
     RenderTexture _RT;
+    RawImage _imageRenderer;
 
     void Start()
     {
@@ -27,7 +25,8 @@ public class WorldRenderer : MonoBehaviour
             wrapMode = TextureWrapMode.Repeat
         };
         // _RT.enableRandomWrite = true;
-        imageRenderer.texture = _RT;
+        _imageRenderer = GetComponent<RawImage>();
+        _imageRenderer.texture = _RT;
     }
 
     void Update()
@@ -46,7 +45,7 @@ public class WorldRenderer : MonoBehaviour
 
         if (_RT)
         {
-            var blitMat = renderMode switch
+            var blitMat = _renderMode switch
             {
                 RenderMode.CellsFull => worldMaterial,
                 RenderMode.CellsEnergy => energyMaterial,
@@ -56,23 +55,26 @@ public class WorldRenderer : MonoBehaviour
             };
             blitMat.SetTexture("_SoilTex", world.SoilTexture);
             blitMat.SetBuffer("_Cells", world.CellsBuffer);
-            blitMat.SetFloat("_Blend", renderMode == RenderMode.SoilEnergy ? 1f : 0f);
+            blitMat.SetFloat("_Blend", _renderMode == RenderMode.SoilEnergy ? 1f : 0f);
             blitMat.SetInteger("_Width", world.SimParams._Width);
             blitMat.SetInteger("_Height", world.SimParams._Height);
             blitMat.SetFloat("_OrgThreshold", world.SimParams._CriticalOrg);
             blitMat.SetFloat("_NrgThreshold", world.SimParams._CriticalNrg);
-            blitMat.SetFloat("_Threshold", renderMode == RenderMode.SoilEnergy ? world.SimParams._CriticalNrg : world.SimParams._CriticalOrg);
+            blitMat.SetFloat("_Threshold", _renderMode == RenderMode.SoilEnergy ? world.SimParams._CriticalNrg : world.SimParams._CriticalOrg);
 
             Graphics.Blit(null, _RT, blitMat);
         }
     }
 
-    void CreateQuadMesh()
+    public void SetRenderMode(RenderMode mode) {
+        _renderMode = mode;
+        _imageRenderer.SetMaterialDirty();
+    }
+
+    public Material GetModifiedMaterial(Material baseMaterial)
     {
-        quadMesh = new Mesh();
-        Vector3[] v = new Vector3[4] { new Vector3(-0.5f,-0.5f,0), new Vector3(0.5f,-0.5f,0), new Vector3(-0.5f,0.5f,0), new Vector3(0.5f,0.5f,0) };
-        Vector2[] uv = new Vector2[4] { new Vector2(0,0), new Vector2(1,0), new Vector2(0,1), new Vector2(1,1) };
-        int[] idx = new int[6] { 0,1,2, 2,1,3 };
-        quadMesh.vertices = v; quadMesh.uv = uv; quadMesh.triangles = idx; quadMesh.RecalculateBounds();
+        baseMaterial.SetFloat("_RenderIndividualCells", _renderMode == RenderMode.CellsFull || _renderMode == RenderMode.CellsEnergy ? 1f : 0f);
+
+        return baseMaterial;
     }
 }
