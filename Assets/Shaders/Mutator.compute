@@ -54,9 +54,9 @@ void ApplyOrganicsKernel(uint3 id : SV_DispatchThreadID)
     int x = xi % _Width; if (x < 0) x += _Width;
     int y = yi % _Height; if (y < 0) y += _Height;
     uint2 pos = uint2(x, y);
-    float2 cur = _SoilTexRW[pos];
+    float2 cur = _SoilTexRO[pos];
     cur.x += d.delta;
-    _SoilTexRW[pos] = cur;
+    _SoilTexWO[pos] = cur;
 }
 
 [numthreads(64,1,1)]
@@ -71,9 +71,9 @@ void ApplyEnergyKernel(uint3 id : SV_DispatchThreadID)
     int x = xi % _Width; if (x < 0) x += _Width;
     int y = yi % _Height; if (y < 0) y += _Height;
     uint2 pos = uint2(x, y);
-    float2 cur = _SoilTexRW[pos];
+    float2 cur = _SoilTexRO[pos];
     cur.y += d.delta;
-    _SoilTexRW[pos] = cur;
+    _SoilTexWO[pos] = cur;
 }
 
 [numthreads(64,1,1)]
@@ -103,12 +103,12 @@ void SetCellsKernel(uint3 id : SV_DispatchThreadID)
     int x = xi % _Width; if (x < 0) x += _Width;
     int y = yi % _Height; if (y < 0) y += _Height;
     uint cellIndex = (uint)(y * _Width + x);
-    if (cellIndex < _CellsRW.Length)
+    if (cellIndex < _CellsRO.Length)
     {
-        Cell c = _CellsRW[cellIndex];
+        Cell c = _CellsRO[cellIndex];
 
         c.cellType = k.newType;
-        _CellsRW[cellIndex] = c;
+        _CellsRO[cellIndex] = c;
     }
 }
 

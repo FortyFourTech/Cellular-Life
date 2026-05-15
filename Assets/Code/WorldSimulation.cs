@@ -216,11 +216,13 @@ public class WorldSimulation : MonoBehaviour
         cb.SetComputeFloatParam(initShader, "_StartOrganic", 0.5f);
         int orgKernelIdx = initShader.FindKernel("InitOrganicsKernel");
         cb.DispatchCompute(initShader, orgKernelIdx, cx, cy, 1);
+        _soilTex.SwapResource(cb);
 
         // init starting energy
         int nrgKernelIdx = initShader.FindKernel("InitEnergyKernel");
         cb.SetComputeFloatParam(initShader, "_MeanEnergy", 0.5f);
         cb.DispatchCompute(initShader, nrgKernelIdx, cx, cy, 1);
+        _soilTex.SwapResource(cb);
 
         // clean the field from cells
         int cellsKernelIdx = initShader.FindKernel("CleanCells");
@@ -329,6 +331,8 @@ public class WorldSimulation : MonoBehaviour
     private void RunPendingMutatorOperations()
     {
         var cb = new CommandBuffer() { name = "MutatorOperations" };
+        _soilTex.SetResources(cb);
+        _cellsBuffer.SetResources(cb);
 
         // apply scheduled mutator operations between steps
         if (organicsScheduled && kernelMutOrganicsIdx >= 0)
@@ -420,6 +424,7 @@ public class WorldSimulation : MonoBehaviour
         bool runImmediately = false;
         if (cb == null) {
             cb = new CommandBuffer() { name = "OrganicsModification" };
+            _soilTex.SetResources(cb);
             runImmediately = true;
         }
 
@@ -430,6 +435,7 @@ public class WorldSimulation : MonoBehaviour
         _soilTex.SetResources(cb);
         int groups = Mathf.CeilToInt((float)count / 64f);
         cb.DispatchCompute(mutationShader, kernelMutOrganicsIdx, groups, 1, 1);
+        _soilTex.SwapResource(cb);
 
         if (runImmediately) {
             Graphics.ExecuteCommandBuffer(cb);
@@ -444,6 +450,7 @@ public class WorldSimulation : MonoBehaviour
         bool runImmediately = false;
         if (cb == null) {
             cb = new CommandBuffer() { name = "EnergyModification" };
+            _soilTex.SetResources(cb);
             runImmediately = true;
         }
 
@@ -454,6 +461,7 @@ public class WorldSimulation : MonoBehaviour
         _soilTex.SetResources();
         int groups = Mathf.CeilToInt((float)count / 64f);
         cb.DispatchCompute(mutationShader, kernelMutEnergyIdx, groups, 1, 1);
+        _soilTex.SwapResource(cb);
 
         if (runImmediately) {
             Graphics.ExecuteCommandBuffer(cb);
@@ -615,6 +623,8 @@ public class WorldSimulation : MonoBehaviour
         cb.name = "SimulationSubstepPipeline";
 
         UpdateTimestamp();
+        _soilTex.SetResources(cb);
+        _cellsBuffer.SetResources(cb);
 
         int cx = Mathf.CeilToInt(SimParams._Width / 8f);
         int cy = Mathf.CeilToInt(SimParams._Height / 8f);
@@ -633,7 +643,7 @@ public class WorldSimulation : MonoBehaviour
         {
             case 0: // soil energy
                 cb.DispatchCompute(simulationShader, kernelEnergyIdx, cx, cy, 1);
-                // _soilTex.SwapResource(cb);
+                _soilTex.SwapResource(cb);
                 break;
             case 1: // leafs
                 cb.DispatchCompute(simulationShader, kernelLeafIdx, cx, cy, 1);
@@ -660,13 +670,13 @@ public class WorldSimulation : MonoBehaviour
             case 7: // death
                 cb.DispatchCompute(simulationShader, kernelDeathIdx, cx, cy, 1);
                 cb.DispatchCompute(simulationShader, kernelKillIdx, cx, cy, 1);
-                // _soilTex.SwapResource(cb);
+                _soilTex.SwapResource(cb);
                 // _cellsBuffer.SwapResource(cb);
                 break;
             case 8: // seeds
                 cb.DispatchCompute(simulationShader, kernelSeedIdx, cx, cy, 1);
                 cb.DispatchCompute(simulationShader, kernelKillIdx, cx, cy, 1);
-                // _soilTex.SwapResource(cb);
+                _soilTex.SwapResource(cb);
                 // _cellsBuffer.SwapResource(cb);
                 break;
             case 9: // sprout decision

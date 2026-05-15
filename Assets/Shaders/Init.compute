@@ -26,9 +26,9 @@ void InitOrganicsKernel(uint3 id : SV_DispatchThreadID)
     if (id.x > _Width || id.y > _Height) return;
 
     uint2 pos = uint2(id.x, id.y);
-    float2 cur = _SoilTexRW[pos];
+    float2 cur = _SoilTexRO[pos];
     cur.x = _StartOrganic;
-    _SoilTexRW[pos] = cur;
+    _SoilTexWO[pos] = cur;
 }
 
 [numthreads(8,8,1)]
@@ -37,9 +37,9 @@ void InitEnergyKernel(uint3 id : SV_DispatchThreadID)
     if (id.x > _Width || id.y > _Height) return;
 
     uint2 pos = uint2(id.x, id.y);
-    float2 cur = _SoilTexRW[pos];
+    float2 cur = _SoilTexRO[pos];
     cur.y = _MeanEnergy;
-    _SoilTexRW[pos] = cur;
+    _SoilTexWO[pos] = cur;
 }
 
 [numthreads(1,1,1)]
@@ -58,7 +58,7 @@ void InitCells(uint3 id : SV_DispatchThreadID)
     newCell.genomeId = AllocateRandomGenome(cellPos);
 #endif
 
-    _CellsRW[cellIdx] = newCell;
+    _CellsRO[cellIdx] = newCell;
 }
 
 [numthreads(8,8,1)]
@@ -66,7 +66,7 @@ void CleanCells(uint3 id : SV_DispatchThreadID)
 {
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
-    _CellsRW[cellIdx] = (Cell)0;
+    _CellsRO[cellIdx] = (Cell)0;
 
     _KillCells[cellIdx] = 0;
     _Debug[cellIdx] = uint2(0,0);

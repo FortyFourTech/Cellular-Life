@@ -25,21 +25,19 @@ void DiffuseEnergyKernel(uint3 id : SV_DispatchThreadID)
     GUARD_CELL_COORD(id.xy);
     uint2 cellPos = id.xy;
 
-    float2 cur = _SoilTexRW[cellPos];
+    float2 cur = _SoilTexRO[cellPos];
     // float2 next = lerp(cur, avg, saturate(_DiffusionRate));
     // next.x = cur.x;
 
     float2 next = float2(cur.x, lerp(cur.y, _Sunlight, _DiffusionRate * _Timestep));
-    _SoilTexRW[cellPos] = next;
+    _SoilTexWO[cellPos] = next;
 }
 
 [numthreads(8,8,1)]
 void LeafKernel(uint3 id : SV_DispatchThreadID)
 {
     GUARD_CELL_COORD(id.xy);
-    uint2 cellPos = id.xy;
-    uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _CellsRW[cellIdx];
+    READ_CELL(id.xy);
     if (cell.cellType != CELLTYPE_LEAF) return; // only leaves
 
     float organicsLocal = 0.0;
@@ -60,16 +58,14 @@ void LeafKernel(uint3 id : SV_DispatchThreadID)
     // float produced = organicsAround * _Sunlight * _Timestep;
     float produced = organicsAround * ((float)freeSpace / 7.0) * _Sunlight * _Timestep; // TODO: consider free space around the leaf
     cell.energy += produced * _Timestep;
-    _CellsRW[cellIdx] = cell;
+    _CellsRO[cellIdx] = cell;
 }
 
 [numthreads(8,8,1)]
 void RootKernel(uint3 id : SV_DispatchThreadID)
 {
     GUARD_CELL_COORD(id.xy);
-    uint2 cellPos = id.xy;
-    uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _CellsRW[cellIdx];
+    READ_CELL(id.xy);
     uint cellType = cell.cellType;
     float2 cellSoil = _SoilTexRO[cellPos];
     // if (cellType != CELLTYPE_ROOT) return; // only roots
@@ -86,7 +82,7 @@ void RootKernel(uint3 id : SV_DispatchThreadID)
             float2 neighborSoil = _SoilTexRO[neighborPos];
 
             uint neighborIdx = PosToIdx(neighborPos);
-            Cell neighborCell = _CellsRW[neighborIdx];
+            Cell neighborCell = _CellsRO[neighborIdx];
 
             float neighborOrganics = neighborSoil.x * (dx == 0 && dy == 0 ? 1.0 : 0.125);
             localOrganics += neighborSoil.x * (dx == 0 && dy == 0);
@@ -104,16 +100,14 @@ void RootKernel(uint3 id : SV_DispatchThreadID)
 
     if (cellType == CELLTYPE_ROOT && localOrganics <= 0) ConvertToWood(cell);
     cell.energy += cellCollectNrg * (cellType == CELLTYPE_ROOT);
-    _CellsRW[cellIdx] = cell;
+    _CellsRO[cellIdx] = cell;
 }
 
 [numthreads(8,8,1)]
 void AntennaKernel(uint3 id : SV_DispatchThreadID)
 {
     GUARD_CELL_COORD(id.xy);
-    uint2 cellPos = id.xy;
-    uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _CellsRW[cellIdx];
+    READ_CELL(id.xy);
     uint cellType = cell.cellType;
     float2 cellSoil = _SoilTexRO[cellPos];
     // if (cellType != CELLTYPE_ANTENNA) return; // only antennas
@@ -130,7 +124,7 @@ void AntennaKernel(uint3 id : SV_DispatchThreadID)
             float2 neighborSoil = _SoilTexRO[neighborPos];
 
             uint neighborIdx = PosToIdx(neighborPos);
-            Cell neighborCell = _CellsRW[neighborIdx];
+            Cell neighborCell = _CellsRO[neighborIdx];
 
             float neighborNrg = neighborSoil.y * (dx == 0 && dy == 0 ? 1.0 : 0.125);
             localEnergy += neighborSoil.y * (dx == 0 && dy == 0);
@@ -148,7 +142,7 @@ void AntennaKernel(uint3 id : SV_DispatchThreadID)
 
     if (cellType == CELLTYPE_ANTENNA && localEnergy <= 0) ConvertToWood(cell);
     cell.energy += cellCollectNrg * (cellType == CELLTYPE_ANTENNA);
-    _CellsRW[cellIdx] = cell;
+    _CellsRO[cellIdx] = cell;
 }
 
 [numthreads(8,8,1)]
@@ -229,7 +223,7 @@ void AbsorptionKernel(uint3 id : SV_DispatchThreadID)
 
     float cost = (cell.cellType == CELLTYPE_SEED ? ABSORB_LIFE_ENERGY_SEED : ABSORB_LIFE_ENERGY) * _Timestep;
     cell.energy -= cost;
-    _CellsRW[cellIdx] = cell;
+    _CellsRO[cellIdx] = cell;
 }
 
 [numthreads(8,8,1)]
@@ -254,19 +248,16 @@ void DeathKernel(uint3 id : SV_DispatchThreadID)
 void KillKernel(uint3 id : SV_DispatchThreadID)
 {
     GUARD_CELL_COORD(id.xy);
-    uint2 cellPos = id.xy;
-    uint cellIdx = PosToIdx(cellPos);
-    Cell cell = _CellsRW[cellIdx];
+    READ_CELL_SOIL(id.xy);
+
     bool killCell = _KillCells[cellIdx];
 
     if (cell.cellType > 0) {
         if (killCell) {
             // spit energy from the cell to soil
             // spit organics to soil
-            float2 soil = _SoilTexRW[cellPos];
             soil.x += 0.1; // organics
-            soil.y += _CellsRW[cellIdx].energy; // energy
-            _SoilTexRW[cellPos] = soil;
+            soil.y += _CellsRO[cellIdx].energy; // energy
 
             RemoveCell(cell);
             cell = (Cell)0;
@@ -276,7 +267,7 @@ void KillKernel(uint3 id : SV_DispatchThreadID)
                 int toNeighbor = dir;
                 uint2 neighborPos = ShiftCoord(cellPos, toNeighbor);
                 uint neighborIdx = PosToIdx(neighborPos);
-                Cell neighborCell = _CellsRW[neighborIdx];
+                Cell neighborCell = _CellsRO[neighborIdx];
 
                 if (!_KillCells[neighborIdx] && neighborCell.cellType > 0) continue;
 
@@ -291,7 +282,8 @@ void KillKernel(uint3 id : SV_DispatchThreadID)
 
     // clear processed kill flag so subsequent passes don't see it
     _KillCells[cellIdx] = 0;
-    _CellsRW[cellIdx] = cell;
+    _CellsRO[cellIdx] = cell;
+    _SoilTexWO[cellPos] = soil;
 }
 
 [numthreads(8,8,1)]
@@ -311,7 +303,7 @@ void SeedKernel(uint3 id : SV_DispatchThreadID)
     [branch]
     if (seedTimer == 255u) {
         ConvertToSprout(cell);
-        _CellsRW[cellIdx] = cell;
+        _CellsRO[cellIdx] = cell;
     } else {
         // deplete timer
         --seedTimer;
@@ -328,19 +320,19 @@ void SeedKernel(uint3 id : SV_DispatchThreadID)
             uint targetIdx = PosToIdx(targetCoord);
 
             [branch]
-            if (_CellsRW[targetIdx].cellType > 0) {
+            if (_CellsRO[targetIdx].cellType > 0) {
                 // kill target cell and self
                 KillCell(targetCoord);
                 KillCell(cellPos);
             } else {
                 // copy self in movement direction
-                _CellsRW[targetIdx] = cell;
+                _CellsRO[targetIdx] = cell;
 
                 // erase self in current position
-                _CellsRW[cellIdx] = (Cell)0;
+                _CellsRO[cellIdx] = (Cell)0;
             }
         } else {
-            _CellsRW[cellIdx] = cell;
+            _CellsRO[cellIdx] = cell;
         }
     }
 }

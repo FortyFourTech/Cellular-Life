@@ -18,12 +18,10 @@ cbuffer _SimParams
     uint pad2;
 }
 
-Texture2D<float2> _SoilTexRO;
+Texture2D<float2> _SoilTexRO; // x=organics, y=soilEnergy
 RWTexture2D<float2> _SoilTexWO;
-RWTexture2D<float2> _SoilTexRW; // x=organics, y=soilEnergy
-StructuredBuffer<Cell> _CellsRO;
+RWStructuredBuffer<Cell> _CellsRO;
 RWStructuredBuffer<Cell> _CellsWO;
-RWStructuredBuffer<Cell> _CellsRW;
 RWStructuredBuffer<Genome> _Genomes; // packed genomes
 RWStructuredBuffer<CommandEntry> _CommandBuffer;
 RWStructuredBuffer<bool> _KillCells;
