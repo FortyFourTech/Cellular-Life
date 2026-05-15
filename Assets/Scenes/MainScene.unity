@@ -1464,7 +1464,7 @@ MonoBehaviour:
     _Timestamp: 0
     _Rand: 0
     _Sunlight: 3
-    _DiffusionRate: 0.01
+    _DiffusionRate: 0
     _CriticalOrg: 5
     _CriticalNrg: 5
 --- !u!1 &901811328
