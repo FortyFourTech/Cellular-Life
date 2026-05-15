@@ -156,6 +156,7 @@ public class UIPanZoom : UIBehaviour, IPointerDownHandler, IDragHandler, IScroll
         float delta = eventData.scrollDelta.y;
         if (Mathf.Abs(delta) < 0.0001f) return;
         if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) return;
+        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) return;
 
         // store previous values
         float prevZoom = zoom;

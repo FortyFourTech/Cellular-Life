@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using UnityEngine;
@@ -11,6 +12,7 @@ public class SimulationUI : MonoBehaviour
     public WorldSimulation world;
     public WorldRenderer wRenderer;
     public UIPanZoom panZoom;
+    public Image brushRenderer;
     [SerializeField] private GenomeStorage _genomeStorage;
 
     // Simulation controls
@@ -24,7 +26,7 @@ public class SimulationUI : MonoBehaviour
     // Brush settings
     public enum BrushMode { None, AddOrganics, AddEnergy, KillCell, SetCell }
     public BrushMode activeBrush = BrushMode.None;
-    public float brushRadius = 4.0f;
+    public float brushRadius = 50.0f;
     public float brushCellType = 1;
     public int brushMouseButton = 0;
     // Quick mutator amounts
@@ -111,6 +113,13 @@ public class SimulationUI : MonoBehaviour
             if (Mathf.Abs(delta) > 0.01f) simulationSpeed = Mathf.Clamp(simulationSpeed + delta * 0.1f, 0.01f, 64f);
         }
 
+        // Shift + mouse wheel changes brush size
+        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+        {
+            float delta = Input.mouseScrollDelta.y;
+            if (Mathf.Abs(delta) > 0.01f) brushRadius = Mathf.Clamp(brushRadius + delta, 10f, 100f);
+        }
+
         // run simulation steps when not paused
         if (!isPaused && world != null)
         {
@@ -188,8 +197,8 @@ public class SimulationUI : MonoBehaviour
         GUILayout.Space(6);
         GUILayout.Label("Brush / Tools", GUI.skin.label);
         activeBrush = (BrushMode)GUILayout.SelectionGrid((int)activeBrush, Enum.GetNames(typeof(BrushMode)), 2);
-        GUILayout.Label($"Brush radius: {brushRadius:F1}");
-        brushRadius = GUILayout.HorizontalSlider(brushRadius, 1f, 64f);
+        GUILayout.Label(new GUIContent($"Brush radius: {brushRadius:F1}", "[Shift] + MouseWheel"));
+        brushRadius = GUILayout.HorizontalSlider(brushRadius, 10f, 100f);
         GUILayout.Label($"Brush delta: {brushDelta:F1}");
         brushDelta = GUILayout.HorizontalSlider(brushDelta, -1f, 1f);
         GUILayout.Label($"Brush cell type: {brushCellType:F1}");
@@ -242,6 +251,33 @@ public class SimulationUI : MonoBehaviour
         if (!string.IsNullOrEmpty(GUI.tooltip)) {
             Vector2 mousePos = Input.mousePosition; // Event.current.mousePosition;
             GUI.Box(new Rect(mousePos.x + 16f, Screen.height - mousePos.y - 16f, 150f, 25f), GUI.tooltip);
+        }
+
+        if (activeBrush != BrushMode.None && world != null)
+        {
+            Vector2 mouse = Input.mousePosition;
+            int gx, gy;
+            bool insideWorldArea = ScreenToGrid(mouse, out gx, out gy);
+
+            if (insideWorldArea)
+            {
+                // Convert mouse position to GUI space (y-inverted)
+                // Vector2 guiMousePos = new Vector2(mouse.x, Screen.height - mouse.y);
+
+                // Draw the circle using the GL class, which operates in pixel coordinates
+                UpdateBrush(mouse, brushRadius, activeBrush switch
+                {
+                    BrushMode.AddOrganics => Color.orange,
+                    BrushMode.AddEnergy => Color.blue,
+                    BrushMode.KillCell => Color.red,
+                    BrushMode.SetCell => Color.white,
+                    _ => Color.clear
+                });
+            }
+        }
+        else
+        {
+            UpdateBrush(Vector2.zero, 0, Color.clear);
         }
     }
 
@@ -547,8 +583,19 @@ public class SimulationUI : MonoBehaviour
         int gx, gy;
         if (!ScreenToGrid(screenPos, out gx, out gy)) return;
 
-        int r = Mathf.Max(1, Mathf.CeilToInt(brushRadius));
-        float r2 = brushRadius * brushRadius;
+        float worldBrushRadius = brushRadius; // This is now screen pixels
+        if (panZoom != null && panRawImage != null)
+        {
+            RectTransform rt = panRawImage.rectTransform;
+            Vector2 size = rt.rect.size; // Screen size of the RawImage
+            var uv = panRawImage.uvRect;
+
+            // 1 screen pixel covers (world.SimParams._Width * uv.width) / size.x grid cells.
+            worldBrushRadius = brushRadius * (world.SimParams._Width * uv.width) / size.x;
+        }
+
+        int r = Mathf.Max(1, Mathf.CeilToInt(worldBrushRadius));
+        float r2 = worldBrushRadius * worldBrushRadius;
 
         // iterate over integer grid within radius and schedule changes
         for (int oy = -r; oy <= r; ++oy)
@@ -591,5 +638,13 @@ public class SimulationUI : MonoBehaviour
     uint GetByte(uint container, int byteIdx)
     {
         return (container >> (byteIdx * 8)) & 0xffu;
+    }
+
+    void UpdateBrush(Vector2 center, float radius, Color color)
+    {
+        brushRenderer.color = color;
+
+        brushRenderer.rectTransform.anchoredPosition = center;
+        brushRenderer.rectTransform.sizeDelta = new Vector2(radius * 2, radius * 2);
     }
 }
