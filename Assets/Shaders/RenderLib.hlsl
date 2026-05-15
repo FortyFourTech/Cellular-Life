@@ -29,16 +29,17 @@ fixed4 RenderEllipse(float2 cellUV, fixed4 baseColor, fixed4 shapeColor, float x
     return lerp(baseColor, shapeColor, ellipseValue <= 1.0);
 }
 
-fixed4 RenderLine(float2 cellUV, fixed4 baseColor, fixed4 shapeColor, float width, uint side) { // from center to side
+fixed4 RenderLine(float2 cellUV, fixed4 baseColor, fixed4 centerColor, fixed4 edgeColor, float width, uint side) { // from center to side
     float2 centeredUV = (cellUV - 0.5) * 2; // [0;1] -> [-1;1]
-    float directions[4] = {
-        clamp(1 - abs(round(centeredUV.x/width/2.0)), 0, 1) * ceil(centeredUV.y), // 0
-        ceil(centeredUV.x) * clamp(1 - abs(round(centeredUV.y/width/2.0)), 0, 1), // 1
-        clamp(1 - abs(round(centeredUV.x/width/2.0)), 0, 1) * ceil(-centeredUV.y), // 2
-        ceil(-centeredUV.x) * clamp(1 - abs(round(centeredUV.y/width/2.0)), 0, 1), // 3
+    float2 directions[4] = {
+        float2(clamp(1 - abs(round(centeredUV.x/width/2.0)), 0, 1) * ceil(centeredUV.y), centeredUV.y), // 0
+        float2(ceil(centeredUV.x) * clamp(1 - abs(round(centeredUV.y/width/2.0)), 0, 1), centeredUV.x), // 1
+        float2(clamp(1 - abs(round(centeredUV.x/width/2.0)), 0, 1) * ceil(-centeredUV.y), -centeredUV.y), // 2
+        float2(ceil(-centeredUV.x) * clamp(1 - abs(round(centeredUV.y/width/2.0)), 0, 1), -centeredUV.x), // 3
     };
-    float direction = directions[side];
-    return lerp(baseColor, shapeColor, direction);
+    float direction = directions[side].x;
+    fixed4 pixelCol = lerp(centerColor, edgeColor, directions[side].y);
+    return lerp(baseColor, pixelCol, direction);
 }
 // #endregion // Simple shapes
 
@@ -72,7 +73,7 @@ fixed4 RenderCell(float2 cellUV, fixed4 baseColor, fixed4 cellColor, uint type, 
     fixed4 square = RenderSquare(cellUV, baseColor, cellColor, 0.8);
     fixed4 star = RenderStar(cellUV, baseColor, cellColor, 0.9, 0.3);
     fixed4 ellipse = RenderEllipse(cellUV, baseColor, cellColor, 0.8, 0.5);
-    fixed4 right = RenderLine(cellUV, baseColor, cellColor, 0.5, 3);
+    fixed4 right = RenderLine(cellUV, baseColor, cellColor, cellColor, 0.5, 3);
     return star;
 }
 

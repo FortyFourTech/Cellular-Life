@@ -2,11 +2,13 @@ Shader "Simulation/WorldOut"
 {
     Properties{
         _MainTex("Main Texture", 2D) = "black" {}
+        _WoodColor("Wood Color", Color) = (0.5,0.5,0.5,1)
 
         _Width("Width", Integer) = 1024
         _Height("Height", Integer) = 1024
 
         _RenderIndividualCells("Render individual cells", Range(0,1)) = 0.0
+        _RenderFlowAsCell("Render flow as cell or as wood", Range(0,1)) = 0.0
         _IndividualCellsRenderSize("Minimal cell size to render individual cells", Float) = 1.0
     }
     SubShader
@@ -25,11 +27,13 @@ Shader "Simulation/WorldOut"
 
             sampler2D _MainTex;
             float4 _MainTex_TexelSize;
+            fixed4 _WoodColor;
 
             int _Width;
             int _Height;
 
             float _RenderIndividualCells;
+            float _RenderFlowAsCell;
             float _IndividualCellsRenderSize;
 
             StructuredBuffer<Cell> _CellsRO;
@@ -87,7 +91,14 @@ Shader "Simulation/WorldOut"
                         bool inFlow = GetIntBit(neighborFlow, RotateDir(dir, DIR_B));
 
                         if (outFlow || inFlow) {
-                            individualVal = RenderLine(cellUV, individualVal, fixed4(0.25,0.25,0.25,1.0), 0.35, dir);
+                            float2 neighborUV = float2((neighborPos.x + 0.5) / (float)_Width, (neighborPos.y + 0.5) / (float) _Height);
+                            fixed4 neighborSample = tex2D(_MainTex, neighborUV);
+
+                            fixed4 lineStartColor = lerp(texVal, neighborSample, inFlow);
+                            fixed4 lineEndColor = lerp(lineStartColor, lerp(neighborSample, texVal, outFlow), 0.5);
+                            lineStartColor = lerp(_WoodColor, lineStartColor, _RenderFlowAsCell);
+                            lineEndColor = lerp(_WoodColor, lineEndColor, _RenderFlowAsCell);
+                            individualVal = RenderLine(cellUV, individualVal, lineStartColor, lineEndColor, 0.35, dir);
                         }
                     }
                     fixed4 shape = RenderCell(cellUV, individualVal, texVal, cellData.cellType, cellData.direction);

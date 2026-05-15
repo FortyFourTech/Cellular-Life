@@ -74,6 +74,7 @@ public class WorldRenderer : MonoBehaviour, IMaterialModifier
     public Material GetModifiedMaterial(Material baseMaterial)
     {
         baseMaterial.SetFloat("_RenderIndividualCells", _renderMode == RenderMode.CellsFull || _renderMode == RenderMode.CellsEnergy ? 1f : 0f);
+        baseMaterial.SetFloat("_RenderFlowAsCell", _renderMode == RenderMode.CellsEnergy ? 1f : 0f);
 
         return baseMaterial;
     }
