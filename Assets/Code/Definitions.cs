@@ -85,32 +85,32 @@ public static class CellTypeExtension
     public static string Name(this CellType cellType) => cellType.ToString();
     public static string Symbol(this CellType cellType) => cellType switch
     {
-        CellType.Empty => "[ 0]",
-        CellType.Leaf => "🟢",
-        CellType.Root => "🔴",
-        CellType.Antenna => "🔵",
-        CellType.Wood => "🟤",
-        CellType.Sprout => "⚪️",
-        CellType.Seed => "🟡",
-        _ => "[-]",
+        CellType.Empty => "<color=grey>  -</color>",
+        CellType.Leaf => "<color=green> o</color>",
+        CellType.Root => "<color=red> o</color>",
+        CellType.Antenna => "<color=blue> o</color>",
+        CellType.Wood => "<color=brown> o</color>",
+        CellType.Sprout => "<color=white>O</color>",
+        CellType.Seed => "<color=yellow>O</color>",
+        _ => " *",
     };
 }
 
 public static class DirectionExtension {
     public static string Symbol(this Direction direction) => direction switch {
-        Direction.Forward => "↑",
-        Direction.Right => "→",
-        Direction.Back => "↓",
-        Direction.Left => "←",
+        Direction.Forward => "^",
+        Direction.Right => ">",
+        Direction.Back => "\\/",
+        Direction.Left => "<",
         _ => "[-]",
     };
 
     public static string Symbol(this DirectionFlags direction) {
         string result = "";
-        if ((direction & DirectionFlags.Left) != 0) result += "←";
-        if ((direction & DirectionFlags.Forward) != 0) result += "↑";
-        if ((direction & DirectionFlags.Back) != 0) result += "↓";
-        if ((direction & DirectionFlags.Right) != 0) result += "→";
+        if ((direction & DirectionFlags.Left) != 0) result += Direction.Left.Symbol();
+        if ((direction & DirectionFlags.Forward) != 0) result += Direction.Forward.Symbol();
+        if ((direction & DirectionFlags.Back) != 0) result += Direction.Back.Symbol();
+        if ((direction & DirectionFlags.Right) != 0) result += Direction.Right.Symbol();
         if (string.IsNullOrEmpty(result)) result = "[-]";
         return result;
     }

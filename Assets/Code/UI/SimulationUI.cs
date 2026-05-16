@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -431,7 +429,7 @@ public class SimulationUI : MonoBehaviour
                 string activeMark = (i == inspectedCell.activeGene) ? "<color=green>" : "<color=white>";
 
                 // Compact one-line representation per gene
-                sb.AppendFormat("{0}{1:00}: {2}{3}{4}{5} | {6}({7:F1}), {8}({9:F1}) | [{10}|{14},{15}], [{11}|{16},{17}] | {12}, {13}\n",
+                sb.AppendFormat("{0}{1:00}: [{2}{3}{4}{5}] | {6}({7:F1}), {8}({9:F1}) | [{10}|{14},{15}], [{11}|{16},{17}] | {12}, {13}</color>\n",
                     activeMark, i, grow0, grow1, grow2, grow3,
                     cond1String, g.condParam1, cond2String, g.condParam2,
                     cr0String, cr1String, gr0, gr1,
@@ -441,52 +439,6 @@ public class SimulationUI : MonoBehaviour
 
             // GUILayout.Label($"Genes:");
             GUILayout.Label(sb.ToString());
-
-            // unsafe
-            // {
-            // }
-            // var genesArr = (fixed Gene[32])inspectedGenome.genes;
-
-            // display genome fields via reflection to avoid access issues
-            // var gType = typeof(GenomeData);
-            // var fields = gType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            // foreach (var f in fields)
-            // {
-            //     object val = f.GetValue(inspectedGenome);
-            //     if (val == null)
-            //     {
-            //         GUILayout.Label($"{f.Name}: null");
-            //         continue;
-            //     }
-
-            //     // if it's an array, show length and some preview
-            //     var arr = val as System.Array;
-            //     if (arr != null)
-            //     {
-            //         GUILayout.Label($"{f.Name}.Length: {arr.Length}");
-            //         int toShow = Math.Min(8, arr.Length);
-            //         for (int i = 0; i < toShow; ++i)
-            //         {
-            //             var el = arr.GetValue(i);
-            //             if (el == null) break;
-            //             // show element fields
-            //             var et = el.GetType();
-            //             var efields = et.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            //             System.Text.StringBuilder sb = new System.Text.StringBuilder();
-            //             sb.Append($"[{i}]: ");
-            //             foreach (var ef in efields)
-            //             {
-            //                 var v = ef.GetValue(el);
-            //                 sb.Append($"{ef.Name}={v} ");
-            //             }
-            //             GUILayout.Label(sb.ToString());
-            //         }
-            //     }
-            //     else
-            //     {
-            //         GUILayout.Label($"{f.Name}: {val}");
-            //     }
-            // }
         }
 
         GUILayout.EndArea();
