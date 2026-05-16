@@ -1467,6 +1467,14 @@ MonoBehaviour:
     _DiffusionRate: 0.01
     _CriticalOrg: 5
     _CriticalNrg: 5
+  CellConstants:
+    OrgAbsorbSpeed: 0.05
+    NrgAbsorbSpeed: 0.05
+    GrowNrg: 0.5
+    LifeNrgSpend: 0.05
+    LifeNrgSpendSeed: 0.005
+    NrgTransportSpeed: 3
+    NrgTransportMin: 0.5
 --- !u!1 &901811328
 GameObject:
   m_ObjectHideFlags: 0

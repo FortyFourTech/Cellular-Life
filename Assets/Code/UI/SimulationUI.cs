@@ -46,6 +46,7 @@ public class SimulationUI : MonoBehaviour
     bool inspectorEnabled = true;
     bool showInvalidCell = false;
     bool haveInspectedCell = false;
+    bool showCellConstants = false;
     CellData inspectedCell;
     Vector2 inspectedSoil;
     Vector2Int inspectedDebug;
@@ -56,6 +57,7 @@ public class SimulationUI : MonoBehaviour
     RawImage panRawImage;
 
     SimParams _simParams;
+    CellConstants _cellConstants;
     private static readonly uint[] commandLookupSingle = {1,2,3,4,5,6,7,8,9,10};
     private static readonly uint[] commandLookupCommon = {1,2,6,11,12,13,14,15,16,17,18,19,20};
 
@@ -74,6 +76,7 @@ public class SimulationUI : MonoBehaviour
         if (world)
         {
             _simParams = world.SimParams;
+            _cellConstants = world.CellConstants;
         }
     }
 
@@ -208,6 +211,26 @@ public class SimulationUI : MonoBehaviour
         // GUILayout.Label($"Cell energy cost/tick: {cellEnergyCost:F4}");
         // cellEnergyCost = GUILayout.HorizontalSlider(cellEnergyCost, 0f, 0.1f);
         // if (GUILayout.Button("Apply World Params")) ApplySimParameters();
+
+        GUILayout.Space(6);
+        showCellConstants = GUILayout.Toggle(showCellConstants, " Cell Constants");
+        if (showCellConstants) {
+            GUILayout.Label($"Soil absorb speed: {_cellConstants.OrgAbsorbSpeed:F2}");
+            _cellConstants.OrgAbsorbSpeed = GUILayout.HorizontalSlider(_cellConstants.OrgAbsorbSpeed, 0.05f, 1f);
+            _cellConstants.NrgAbsorbSpeed = _cellConstants.OrgAbsorbSpeed;
+
+            GUILayout.Label($"Grow energy spend: {_cellConstants.GrowNrg:F2}");
+            _cellConstants.GrowNrg = GUILayout.HorizontalSlider(_cellConstants.GrowNrg, 0.01f, 2f);
+
+            GUILayout.Label($"Life spend: {_cellConstants.LifeNrgSpend:F2}");
+            _cellConstants.LifeNrgSpend = GUILayout.HorizontalSlider(_cellConstants.LifeNrgSpend, 0.01f, 1f);
+
+            GUILayout.Label($"Transport speed: {_cellConstants.NrgTransportSpeed:F2}");
+            _cellConstants.NrgTransportSpeed = GUILayout.HorizontalSlider(_cellConstants.NrgTransportSpeed, 1f, 10f);
+
+            GUILayout.Label($"Min energy to transport: {_cellConstants.NrgTransportMin:F2}");
+            _cellConstants.NrgTransportMin = GUILayout.HorizontalSlider(_cellConstants.NrgTransportMin, 0.01f, 2f);
+        }
 
         GUILayout.Space(6);
         GUILayout.Label("Brush / Tools", GUI.skin.label);
@@ -552,10 +575,8 @@ public class SimulationUI : MonoBehaviour
     {
         if (world == null) return;
 
-        world.SimParams._Sunlight = _simParams._Sunlight;
-        world.SimParams._DiffusionRate = _simParams._DiffusionRate;
-        // _simParams._CriticalOrg;
-        // _simParams._CriticalNrg;
+        world.SimParams = _simParams;
+        world.CellConstants = _cellConstants;
     }
 
     void ApplyBrushAtScreenPosition(Vector2 screenPos)

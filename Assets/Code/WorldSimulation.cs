@@ -10,6 +10,7 @@ public class WorldSimulation : MonoBehaviour
     public ComputeShader mutationShader;
     [SerializeField] private GenomeStorage _genomeStorage;
     public SimParams SimParams;
+    public CellConstants CellConstants;
 
     // public bool isPaused = true;
 
@@ -18,6 +19,7 @@ public class WorldSimulation : MonoBehaviour
     PingPongBuffer _cellsBuffer;
 
     ConstantBuffer<SimParams> simParamsBuffer;
+    ConstantBuffer<CellConstants> cellConstantsBuffer;
     GraphicsBuffer genomesBuffer;
     GraphicsBuffer killBuffer;
     GraphicsBuffer commandBuffer;
@@ -149,6 +151,10 @@ public class WorldSimulation : MonoBehaviour
         UpdateTimestamp();
         simParamsBuffer.SetGlobal(Shader.PropertyToID("_SimParams"));
 
+        cellConstantsBuffer = new ConstantBuffer<CellConstants>();
+        cellConstantsBuffer.SetGlobal(Shader.PropertyToID("_CellConstants"));
+        cellConstantsBuffer.UpdateData(CellConstants);
+
         // allocate command buffer (4 uints per entry)
         int cmdElemSize = System.Runtime.InteropServices.Marshal.SizeOf(typeof(CommandEntry));
         commandBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, Mathf.Max(1, cellsCapacity), cmdElemSize);
@@ -210,6 +216,7 @@ public class WorldSimulation : MonoBehaviour
 
         // init starting organics
         UpdateTimestamp();
+        cellConstantsBuffer.UpdateData(CellConstants);
         _soilTex.SetResources(cb);
         _cellsBuffer.SetResources(cb);
 
@@ -246,6 +253,7 @@ public class WorldSimulation : MonoBehaviour
         cb.name = "PopulatePipeline";
 
         UpdateTimestamp();
+        cellConstantsBuffer.UpdateData(CellConstants);
         _soilTex.SetResources(cb);
         _cellsBuffer.SetResources(cb);
 
@@ -313,6 +321,7 @@ public class WorldSimulation : MonoBehaviour
         int cy = Mathf.CeilToInt(SimParams._Height / 8f);
 
         UpdateTimestamp();
+        cellConstantsBuffer.UpdateData(CellConstants);
         _soilTex.SetResources(cb);
         _cellsBuffer.SetResources(cb);
 
@@ -363,6 +372,7 @@ public class WorldSimulation : MonoBehaviour
     private void OnDestroy()
     {
         simParamsBuffer?.Release();
+        cellConstantsBuffer?.Release();
         _cellsBuffer.Dispose();
         genomesBuffer?.Release();
         killBuffer?.Release();
@@ -624,6 +634,7 @@ public class WorldSimulation : MonoBehaviour
         cb.name = "SimulationSubstepPipeline";
 
         UpdateTimestamp();
+        cellConstantsBuffer.UpdateData(CellConstants);
         _soilTex.SetResources(cb);
         _cellsBuffer.SetResources(cb);
 

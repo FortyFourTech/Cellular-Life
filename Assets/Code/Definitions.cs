@@ -128,9 +128,21 @@ public struct SimParams
     public float _DiffusionRate;
     public float _CriticalOrg;
     public float _CriticalNrg;
-    uint pad0;
-    uint pad1;
-    uint pad2;
+    uint _pad0;
+    uint _pad1;
+    uint _pad2;
+}
+
+[Serializable]
+public struct CellConstants {
+    public float OrgAbsorbSpeed;      // 0.05
+    public float NrgAbsorbSpeed;      // 0.05
+    public float GrowNrg;             // 0.5
+    public float LifeNrgSpend;        // 0.05
+    public float LifeNrgSpendSeed;    // 0.005
+    public float NrgTransportSpeed;   // 2.0
+    public float NrgTransportMin;     // 1.0
+    uint _pad0;
 }
 
 public struct CommandEntry {

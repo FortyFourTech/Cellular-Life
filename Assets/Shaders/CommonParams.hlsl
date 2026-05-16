@@ -13,10 +13,20 @@ cbuffer _SimParams
     float _DiffusionRate;
     float _CriticalOrg;
     float _CriticalNrg;
-    uint pad0;
-    uint pad1;
-    uint pad2;
+    uint3 _SimParamsPad012;
 }
+
+cbuffer _CellConstants {
+    float _OrgAbsorbSpeed;      // 0.05
+    float _NrgAbsorbSpeed;      // 0.05
+    float _GrowNrg;             // 0.5
+    float _LifeNrgSpend;        // 0.05
+    float _LifeNrgSpendSeed;    // 0.005
+    float _NrgTransportSpeed;   // 2.0
+    float _NrgTransportMin;     // 1.0
+    uint _CellConstantsPad0;
+}
+// #define CELL_ORG_COST       0.5
 
 Texture2D<float2> _SoilTexRO; // x=organics, y=soilEnergy
 RWTexture2D<float2> _SoilTexWO;

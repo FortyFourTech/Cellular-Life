@@ -14,7 +14,7 @@ Cell CreateCell(uint2 targetPos, uint type, uint direction, uint parentDir, uint
     newCell.genomeId = genomeId;
     newCell.activeGene = 0u;
     newCell.parentDir = parentDir;
-    newCell.energy = ENERGY_GROW;
+    newCell.energy = _GrowNrg;
     newCell.direction = direction;
     newCell.seedProps = (SPEED_NO << 16u) | 32u;
     SetIntBit(newCell.energyFlow, type != CELLTYPE_SPROUT && type != CELLTYPE_SEED, parentDir);
