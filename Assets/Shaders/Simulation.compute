@@ -141,7 +141,7 @@ void AntennaKernel(uint3 id : SV_DispatchThreadID)
 
             float neighborNrg = neighborSoil.y * (dx == 0 && dy == 0 ? 1.0 : 0.125);
             localEnergy += neighborSoil.y * (dx == 0 && dy == 0);
-            float cellNrgDelta = min(neighborNrg, ABSORB_SOIL_ORGANICS * _Timestep);
+            float cellNrgDelta = min(neighborNrg, ABSORB_SOIL_ENERGY * _Timestep);
             cellCollectNrg += cellNrgDelta;
             localEnergy -= cellNrgDelta * (dx == 0 && dy == 0);
 
