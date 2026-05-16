@@ -46,7 +46,10 @@ public class SimulationUI : MonoBehaviour
     bool inspectorEnabled = true;
     bool showInvalidCell = false;
     bool haveInspectedCell = false;
+    bool showWorldParameters = false;
     bool showCellConstants = false;
+    bool showTools = false;
+    bool showStatistics = false;
     CellData inspectedCell;
     Vector2 inspectedSoil;
     Vector2Int inspectedDebug;
@@ -180,37 +183,37 @@ public class SimulationUI : MonoBehaviour
 
         GUILayout.Label("Simulation Controls", GUI.skin.label);
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button(isPaused ? "Resume" : "Pause")) { isPaused = !isPaused; }
-        _Tooltip(isPaused ? "[Ctrl]+[Space]" : "[Space]");
+            if (GUILayout.Button(isPaused ? "Resume" : "Pause")) { isPaused = !isPaused; }
+            _Tooltip(isPaused ? "[Ctrl]+[Space]" : "[Space]");
 
-        if (isPaused){
-            if (GUILayout.Button("Step")) { StepOnce(); }
-            _Tooltip("[Space]");
-        }
+            if (isPaused){
+                if (GUILayout.Button("Step")) { StepOnce(); }
+                _Tooltip("[Space]");
+            }
         GUILayout.EndHorizontal();
 
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Generate")) { Generate(); }
-        if (GUILayout.Button("Populate")) { Populate(); }
-        if (GUILayout.Button("Restart")) { Generate(); Populate(); }
-        _Tooltip("[R]");
+            if (GUILayout.Button("Generate")) { Generate(); }
+            if (GUILayout.Button("Populate")) { Populate(); }
+            if (GUILayout.Button("Restart")) { Generate(); Populate(); }
+            _Tooltip("[R]");
         GUILayout.EndHorizontal();
+
+        if (isPaused)
+            executeSubstep = GUILayout.Toggle(executeSubstep, $"Execute Sim Substep ({world.SubstepIdx})");
 
         GUILayout.Label($"Speed: {simulationSpeed:F2}");
         _Tooltip("[Ctrl] + MouseWheel");
         simulationSpeed = GUILayout.HorizontalSlider(simulationSpeed, 0.01f, 1f);
-        if (isPaused)
-            executeSubstep = GUILayout.Toggle(executeSubstep, $"Execute Sim Substep ({world.SubstepIdx})");
 
         GUILayout.Space(6);
-        GUILayout.Label("World Parameters", GUI.skin.label);
-        GUILayout.Label($"Sunlight: {_simParams._Sunlight:F2}");
-        _simParams._Sunlight = GUILayout.HorizontalSlider(_simParams._Sunlight, 0f, 10f);
-        GUILayout.Label($"Diffusion Rate: {_simParams._DiffusionRate:F2}");
-        _simParams._DiffusionRate = GUILayout.HorizontalSlider(_simParams._DiffusionRate, 0f, 1f);
-        // GUILayout.Label($"Cell energy cost/tick: {cellEnergyCost:F4}");
-        // cellEnergyCost = GUILayout.HorizontalSlider(cellEnergyCost, 0f, 0.1f);
-        // if (GUILayout.Button("Apply World Params")) ApplySimParameters();
+        showWorldParameters = GUILayout.Toggle(showWorldParameters, " World Parameters");
+        if (showWorldParameters) {
+            GUILayout.Label($"Sunlight: {_simParams._Sunlight:F2}");
+            _simParams._Sunlight = GUILayout.HorizontalSlider(_simParams._Sunlight, 0f, 10f);
+            GUILayout.Label($"Diffusion Rate: {_simParams._DiffusionRate:F2}");
+            _simParams._DiffusionRate = GUILayout.HorizontalSlider(_simParams._DiffusionRate, 0f, 1f);
+        }
 
         GUILayout.Space(6);
         showCellConstants = GUILayout.Toggle(showCellConstants, " Cell Constants");
@@ -233,15 +236,17 @@ public class SimulationUI : MonoBehaviour
         }
 
         GUILayout.Space(6);
-        GUILayout.Label("Brush / Tools", GUI.skin.label);
-        activeBrush = (BrushMode)GUILayout.SelectionGrid((int)activeBrush, Enum.GetNames(typeof(BrushMode)), 2);
-        GUILayout.Label($"Brush radius: {brushRadius:F1}");
-        _Tooltip("[Shift] + MouseWheel");
-        brushRadius = GUILayout.HorizontalSlider(brushRadius, 10f, 100f);
-        GUILayout.Label($"Brush delta: {brushDelta:F1}");
-        brushDelta = GUILayout.HorizontalSlider(brushDelta, -1f, 1f);
-        GUILayout.Label($"Brush cell type: {brushCellType:F1}");
-        brushCellType = GUILayout.HorizontalSlider(brushCellType, 1f, 6f);
+        showTools = GUILayout.Toggle(showTools, " Brush / Tools");
+        if (showTools) {
+            activeBrush = (BrushMode)GUILayout.SelectionGrid((int)activeBrush, Enum.GetNames(typeof(BrushMode)), 2);
+            GUILayout.Label($"Brush radius: {brushRadius:F1}");
+            _Tooltip("[Shift] + MouseWheel");
+            brushRadius = GUILayout.HorizontalSlider(brushRadius, 10f, 100f);
+            GUILayout.Label($"Brush delta: {brushDelta:F1}");
+            brushDelta = GUILayout.HorizontalSlider(brushDelta, -1f, 1f);
+            GUILayout.Label($"Brush cell type: {brushCellType:F1}");
+            brushCellType = GUILayout.HorizontalSlider(brushCellType, 1f, 6f);
+        }
 
         GUILayout.Space(6);
         GUILayout.Label("Visualization", GUI.skin.label);
@@ -272,20 +277,24 @@ public class SimulationUI : MonoBehaviour
         // genomeInput = GUILayout.TextArea(genomeInput, GUILayout.Height(60));
         // if (GUILayout.Button("Create Seed with Genome")) { CreateSeedFromGenome(); }
 
+
         GUILayout.Space(6);
-        GUILayout.Label("Debug / Quick Stats", GUI.skin.label);
-        if (world != null)
-        {
-            GUILayout.Label($"Total cells: {world.Stats.cellsCount}");
-            GUILayout.Label($"{CellType.Leaf.Symbol()}: {world.Stats.leafsCount}");
-            GUILayout.Label($"{CellType.Root.Symbol()}: {world.Stats.rootsCount}");
-            GUILayout.Label($"{CellType.Antenna.Symbol()}: {world.Stats.antennasCount}");
-            GUILayout.Label($"{CellType.Wood.Symbol()}: {world.Stats.woodCount}");
-            GUILayout.Label($"{CellType.Sprout.Symbol()}: {world.Stats.sproutsCount}");
-            GUILayout.Label($"{CellType.Seed.Symbol()}: {world.Stats.seedsCount}");
-            GUILayout.Label($"Cell energy: {world.Stats.cellEnergy}");
-            GUILayout.Label($"Soil organics: {world.Stats.soilOrganics}");
-            GUILayout.Label($"Soil energy: {world.Stats.soilEnergy}");
+        showStatistics = GUILayout.Toggle(showStatistics, " Debug / Quick Stats");
+        if (showStatistics) {
+            GUILayout.Space(6);
+            if (world != null)
+            {
+                GUILayout.Label($"Total cells: {world.Stats.cellsCount}");
+                GUILayout.Label($"{CellType.Leaf.Symbol()}: {world.Stats.leafsCount}");
+                GUILayout.Label($"{CellType.Root.Symbol()}: {world.Stats.rootsCount}");
+                GUILayout.Label($"{CellType.Antenna.Symbol()}: {world.Stats.antennasCount}");
+                GUILayout.Label($"{CellType.Wood.Symbol()}: {world.Stats.woodCount}");
+                GUILayout.Label($"{CellType.Sprout.Symbol()}: {world.Stats.sproutsCount}");
+                GUILayout.Label($"{CellType.Seed.Symbol()}: {world.Stats.seedsCount}");
+                GUILayout.Label($"Cell energy: {world.Stats.cellEnergy}");
+                GUILayout.Label($"Soil organics: {world.Stats.soilOrganics}");
+                GUILayout.Label($"Soil energy: {world.Stats.soilEnergy}");
+            }
         }
 
         GUILayout.EndScrollView();
@@ -356,11 +365,10 @@ public class SimulationUI : MonoBehaviour
 
 #if DEVELOPMENT_BUILD
         GUILayout.Label($"Debug [{inspectedDebug.x};{inspectedDebug.y}]");
-#endif // DEVELOPMENT_BUILD
 
         ReadCommandFromGpu(gx, gy);
         GUILayout.Label($"Last cell command: [{inspectedCommand.commandId}]({inspectedCommand.successGene},{inspectedCommand.failGene})");
-        GUILayout.Space(6);
+#endif // DEVELOPMENT_BUILD
 
         // read cell from GPU
         ReadCellFromGpu(gx, gy);
@@ -369,6 +377,7 @@ public class SimulationUI : MonoBehaviour
         showInvalidCell = GUILayout.Toggle(showInvalidCell, "Show invalid cell");
 #endif // DEVELOPMENT_BUILD
 
+        GUILayout.Space(6);
         if (!haveInspectedCell && !showInvalidCell)
         {
             GUILayout.Label("Failed to read cell data");
