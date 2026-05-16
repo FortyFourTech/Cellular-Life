@@ -222,17 +222,17 @@ public class SimulationUI : MonoBehaviour
 
         GUILayout.Space(6);
         GUILayout.Label("Visualization", GUI.skin.label);
+        Action<WorldRenderer.RenderMode,string> renderModeButton = (WorldRenderer.RenderMode rm, string hotkeyTooltip) => {
+            if (GUILayout.Toggle(activeRenderMode == rm, Enum.GetName(typeof(WorldRenderer.RenderMode), rm), GUI.skin.button)) { activeRenderMode = rm; }
+            _Tooltip(hotkeyTooltip);
+        };
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button(Enum.GetName(typeof(WorldRenderer.RenderMode), WorldRenderer.RenderMode.CellsFull))) { activeRenderMode = WorldRenderer.RenderMode.CellsFull; }
-        _Tooltip("[1]");
-        if (GUILayout.Button(Enum.GetName(typeof(WorldRenderer.RenderMode), WorldRenderer.RenderMode.CellsEnergy))) { activeRenderMode = WorldRenderer.RenderMode.CellsFull; }
-        _Tooltip("[2]");
+        renderModeButton(WorldRenderer.RenderMode.CellsFull,    "[1]");
+        renderModeButton(WorldRenderer.RenderMode.CellsEnergy,  "[2]");
         GUILayout.EndHorizontal();
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button(Enum.GetName(typeof(WorldRenderer.RenderMode), WorldRenderer.RenderMode.SoilOrganics))) { activeRenderMode = WorldRenderer.RenderMode.CellsFull; }
-        _Tooltip("[3]");
-        if (GUILayout.Button(Enum.GetName(typeof(WorldRenderer.RenderMode), WorldRenderer.RenderMode.SoilEnergy))) { activeRenderMode = WorldRenderer.RenderMode.CellsFull; }
-        _Tooltip("[4]");
+        renderModeButton(WorldRenderer.RenderMode.SoilOrganics, "[3]");
+        renderModeButton(WorldRenderer.RenderMode.SoilEnergy,   "[4]");
         GUILayout.EndHorizontal();
         // showEnergyFlow = GUILayout.Toggle(showEnergyFlow, "Show Energy Flow");
         wRenderer.SetRenderMode(activeRenderMode);
