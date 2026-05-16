@@ -356,13 +356,13 @@ bool CommandSendSeed(uint2 cellPos, uint cellIdx, Cell cell, uint speed) {
     uint targetIdx = PosToIdx(targetPos);
     Cell targetCell = _CellsRO[targetIdx];
 
-    if (cell.energy < ENERGY_GROW + 0.5 || targetCell.cellType > 0)
+    if (cell.energy < ENERGY_GROW * 3 || targetCell.cellType > 0)
         return false;
 
     Cell seedCell = CreateCell(targetPos, CELLTYPE_SEED, cellDir, 0xFFFFFFFFu, cell.genomeId);
     seedCell.seedProps = (speed << 16) | 32;
-    seedCell.energy += 0.5;
-    cell.energy -= 0.5;
+    seedCell.energy += ENERGY_GROW;
+    cell.energy -= ENERGY_GROW * 2;
     _CellsRO[cellIdx] = cell;
     _CellsRO[targetIdx] = seedCell;
 
