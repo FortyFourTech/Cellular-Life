@@ -39,7 +39,7 @@ void DiffuseEnergyKernel(uint3 id : SV_DispatchThreadID)
 
     float nextNrg = soilNrg;
     // 1. make diffusion with sunlight
-    nextNrg = lerp(soilNrg, _Sunlight, _DiffusionRate * _Timestep);
+    // nextNrg = lerp(soilNrg, _Sunlight * 0.5, _DiffusionRate * _Timestep);
     // 2. make diffusion with neighbors
     nextNrg = lerp(soilNrg, nrgAround / 9.0, _DiffusionRate * _Timestep);
 
