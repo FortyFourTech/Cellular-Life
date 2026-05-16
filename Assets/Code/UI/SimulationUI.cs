@@ -22,7 +22,7 @@ public class SimulationUI : MonoBehaviour
     public float cellEnergyCost = 0.005f;
 
     // Brush settings
-    public enum BrushMode { None, AddOrganics, AddEnergy, KillCell, SetCell }
+    public enum BrushMode { None, AddOrganics, AddEnergy, KillCell }
     public BrushMode activeBrush = BrushMode.None;
     public float brushRadius = 50.0f;
     public float brushCellType = 1;
@@ -292,7 +292,7 @@ public class SimulationUI : MonoBehaviour
                     BrushMode.AddOrganics => Color.orange,
                     BrushMode.AddEnergy => Color.blue,
                     BrushMode.KillCell => Color.red,
-                    BrushMode.SetCell => Color.white,
+                    // BrushMode.SetCell => Color.white,
                     _ => Color.clear
                 });
             }
@@ -600,9 +600,9 @@ public class SimulationUI : MonoBehaviour
                     case BrushMode.KillCell:
                         world.ScheduleKillAt(x, y);
                         break;
-                    case BrushMode.SetCell:
-                        world.ScheduleSetCell(x, y, Mathf.FloorToInt(brushCellType));
-                        break;
+                    // case BrushMode.SetCell:
+                    //     world.ScheduleSetCell(x, y, Mathf.FloorToInt(brushCellType));
+                    //     break;
                 }
             }
         }
@@ -612,7 +612,7 @@ public class SimulationUI : MonoBehaviour
             if (activeBrush == BrushMode.AddOrganics) world.RunOrganicsNow();
             if (activeBrush == BrushMode.AddEnergy) world.RunEnergyNow();
             if (activeBrush == BrushMode.KillCell) world.RunKillNow();
-            if (activeBrush == BrushMode.SetCell) world.RunSetCellNow();
+            // if (activeBrush == BrushMode.SetCell) world.RunSetCellNow();
         } catch { }
     }
 
