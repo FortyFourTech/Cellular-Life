@@ -23,14 +23,27 @@ RWStructuredBuffer<SimStats> _Stats; // small stats buffer
 void DiffuseEnergyKernel(uint3 id : SV_DispatchThreadID)
 {
     GUARD_CELL_COORD(id.xy);
-    uint2 cellPos = id.xy;
+    READ_SOIL(id.xy);
 
-    float2 cur = _SoilTexRO[cellPos];
-    // float2 next = lerp(cur, avg, saturate(_DiffusionRate));
-    // next.x = cur.x;
+    float soilOrg = soil.x;
+    float soilNrg = soil.y;
 
-    float2 next = float2(cur.x, lerp(cur.y, _Sunlight, _DiffusionRate * _Timestep));
-    _SoilTexWO[cellPos] = next;
+    float nrgAround = 0.0;
+    for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+            uint2 coord = MoveCoord(cellPos, int2(dx,dy));
+            float2 coordSoil = _SoilTexRO[coord];
+            nrgAround += coordSoil.y;
+        }
+    }
+
+    float nextNrg = soilNrg;
+    // 1. make diffusion with sunlight
+    nextNrg = lerp(soilNrg, _Sunlight, _DiffusionRate * _Timestep);
+    // 2. make diffusion with neighbors
+    nextNrg = lerp(soilNrg, nrgAround / 9.0, _DiffusionRate * _Timestep);
+
+    _SoilTexWO[cellPos] = float2(soilOrg, nextNrg);
 }
 
 [numthreads(8,8,1)]
@@ -250,15 +263,23 @@ void KillKernel(uint3 id : SV_DispatchThreadID)
     GUARD_CELL_COORD(id.xy);
     READ_CELL_SOIL(id.xy);
 
+    // spit organics to soil
+    // spit energy from the cell to soil
+    for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+            uint2 coord = MoveCoord(cellPos, int2(dx,dy));
+            uint coordIdx = PosToIdx(coord);
+            Cell coordCell = _CellsRO[coordIdx];
+            bool killCoordCell = (coordCell.cellType > 0) && _KillCells[coordIdx];
+            soil.x += killCoordCell * ENERGY_GROW * ((dx == 0 && dy == 0) ? 0.5 : (0.5/8.0));
+            soil.y += killCoordCell * coordCell.energy * (dx == 0 && dy == 0);
+        }
+    }
+
     bool killCell = _KillCells[cellIdx];
 
     if (cell.cellType > 0) {
         if (killCell) {
-            // spit energy from the cell to soil
-            // spit organics to soil
-            soil.x += 0.1; // organics
-            soil.y += _CellsRO[cellIdx].energy; // energy
-
             RemoveCell(cell);
             cell = (Cell)0;
         } else {
@@ -282,7 +303,7 @@ void KillKernel(uint3 id : SV_DispatchThreadID)
 
     // clear processed kill flag so subsequent passes don't see it
     _KillCells[cellIdx] = 0;
-    _CellsRO[cellIdx] = cell;
+    _CellsWO[cellIdx] = cell;
     _SoilTexWO[cellPos] = soil;
 }
 

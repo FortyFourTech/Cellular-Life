@@ -135,6 +135,11 @@ uint2 ShiftCoord(int2 inPos, uint dir) {
     int2 mapSize = int2(_Width,_Height);
     return (inPos + offsets[dir] + mapSize) % mapSize;
 }
+
+uint2 MoveCoord(uint2 inPos, int2 offset) {
+    int2 mapSize = int2(_Width,_Height);
+    return (inPos + offset + mapSize) % mapSize;
+}
 // #endregion // Direction
 
 // #region Cell analysis

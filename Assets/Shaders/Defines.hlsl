@@ -8,6 +8,7 @@
 #define CELLTYPE_SEED       6
 
 #define ENERGY_GROW         0.5
+// #define CELL_ORG_COST       0.5
 
 #define ABSORB_SOIL_ORGANICS 0.05
 #define ABSORB_SOIL_ENERGY  0.05

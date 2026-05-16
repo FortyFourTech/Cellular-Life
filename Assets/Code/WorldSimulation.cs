@@ -489,6 +489,7 @@ public class WorldSimulation : MonoBehaviour
         int cx = Mathf.CeilToInt(SimParams._Width / 8f);
         int cy = Mathf.CeilToInt(SimParams._Height / 8f);
         cb.DispatchCompute(simulationShader, kernelKillIdx, cx, cy, 1);
+        _cellsBuffer.SwapResource(cb);
 
         if (runImmediately) {
             Graphics.ExecuteCommandBuffer(cb);
@@ -671,13 +672,13 @@ public class WorldSimulation : MonoBehaviour
                 cb.DispatchCompute(simulationShader, kernelDeathIdx, cx, cy, 1);
                 cb.DispatchCompute(simulationShader, kernelKillIdx, cx, cy, 1);
                 _soilTex.SwapResource(cb);
-                // _cellsBuffer.SwapResource(cb);
+                _cellsBuffer.SwapResource(cb);
                 break;
             case 8: // seeds
                 cb.DispatchCompute(simulationShader, kernelSeedIdx, cx, cy, 1);
                 cb.DispatchCompute(simulationShader, kernelKillIdx, cx, cy, 1);
                 _soilTex.SwapResource(cb);
-                // _cellsBuffer.SwapResource(cb);
+                _cellsBuffer.SwapResource(cb);
                 break;
             case 9: // sprout decision
                 cb.DispatchCompute(behaviorShader, kernelDecisionIdx, cx, cy, 1);
