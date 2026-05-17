@@ -124,24 +124,6 @@ public class SimulationUI : MonoBehaviour
             if (Mathf.Abs(delta) > 0.01f) brushRadius = Mathf.Clamp(brushRadius + delta, 10f, 100f);
         }
 
-        // run simulation steps when not paused
-        if (!isPaused && world != null)
-        {
-            float timeSinceLastUpdate = Time.time - lastUpdateTime;
-            if (simulationSpeed > 1f) {
-                int steps = Mathf.Max(1, Mathf.FloorToInt(simulationSpeed));
-                for (int i = 0; i < steps; ++i) world.Step();
-                lastUpdateTime = Time.time;
-            } else {
-                if (timeSinceLastUpdate > Time.fixedDeltaTime / simulationSpeed)
-                {
-                    world.Step();
-                    lastUpdateTime = Time.time;
-                }
-            }
-
-            ApplySimParameters();
-        }
 
         // brush input: apply while holding the brush mouse button
         if (activeBrush != BrushMode.None && Input.GetMouseButtonDown(brushMouseButton) && world != null)
@@ -163,6 +145,27 @@ public class SimulationUI : MonoBehaviour
             UnityEditor.AssetDatabase.SaveAssetIfDirty(_genomeStorage);
         }
 #endif
+    }
+
+    private void FixedUpdate() {
+        // run simulation steps when not paused
+        if (!isPaused && world != null)
+        {
+            ApplySimParameters();
+
+            float timeSinceLastUpdate = Time.time - lastUpdateTime;
+            if (simulationSpeed > 1f) {
+                int steps = Mathf.Max(1, Mathf.FloorToInt(simulationSpeed));
+                for (int i = 0; i < steps; ++i) world.Step();
+                lastUpdateTime = Time.time;
+            } else {
+                if (timeSinceLastUpdate > Time.fixedDeltaTime / simulationSpeed)
+                {
+                    world.Step();
+                    lastUpdateTime = Time.time;
+                }
+            }
+        }
     }
 
     private void _Tooltip(string text) {
@@ -576,6 +579,7 @@ public class SimulationUI : MonoBehaviour
 
     void StepOnce()
     {
+        ApplySimParameters();
         if (executeSubstep) world?.StepSubstep();
         else world?.Step();
     }
