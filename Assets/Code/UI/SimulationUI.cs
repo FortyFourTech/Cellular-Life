@@ -145,9 +145,7 @@ public class SimulationUI : MonoBehaviour
             UnityEditor.AssetDatabase.SaveAssetIfDirty(_genomeStorage);
         }
 #endif
-    }
 
-    private void FixedUpdate() {
         // run simulation steps when not paused
         if (!isPaused && world != null)
         {
