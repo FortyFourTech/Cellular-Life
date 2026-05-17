@@ -95,7 +95,7 @@ Shader "Simulation/WorldOut"
                             fixed4 lineEndColor = lerp(lineStartColor, lerp(neighborSample, texVal, outFlow), 0.5);
                             lineStartColor = lerp(_WoodColor, lineStartColor, _RenderFlowAsCell);
                             lineEndColor = lerp(_WoodColor, lineEndColor, _RenderFlowAsCell);
-                            individualVal = RenderLine(cellUV, individualVal, lineStartColor, lineEndColor, 0.35, dir);
+                            individualVal = RenderLine(cellUV, individualVal, lineStartColor, lineEndColor, 0.15, dir);
                         }
                     }
                     fixed4 shape = RenderCell(cellUV, individualVal, texVal, cellData.cellType, cellData.direction);
