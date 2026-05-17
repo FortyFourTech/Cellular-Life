@@ -204,9 +204,13 @@ bool CommandGrow(uint2 cellPos, uint cellIdx, Cell cell) {
             || _CellsRO[targetIdx].cellType != 0
         ) continue;
 
-        Cell newCell = CreateCell(targetCoord, typeToCreate, createDir, RotateDir(createDir, DIR_B), cell.genomeId);
+        uint parentDir = RotateDir(createDir, DIR_B);
+        Cell newCell = CreateCell(targetCoord, typeToCreate, createDir, parentDir, cell.genomeId);
         cell.energy -= _GrowNrg + _CellOrgCost;
-        SetIntBit(cell.energyFlow, typeToCreate == CELLTYPE_SPROUT || typeToCreate == CELLTYPE_SEED, createDir);
+        SetOutFlow(cell, createDir, typeToCreate >= CELLTYPE_SPROUT);
+        SetInFlow(newCell, parentDir, typeToCreate >= CELLTYPE_SPROUT);
+        SetInFlow(cell, createDir, typeToCreate < CELLTYPE_SPROUT);
+        SetOutFlow(newCell, parentDir, typeToCreate < CELLTYPE_SPROUT);
         _CellsRO[targetIdx] = newCell;
 
         growed = true;
@@ -266,8 +270,10 @@ bool CommandAttach(uint2 cellPos, uint cellIdx, Cell cell) {
     Cell neighborCell = _CellsRO[neighborIdx];
     if (neighborCell.cellType != CELLTYPE_WOOD) return false;
 
-    SetIntBit(neighborCell.energyFlow, 1, RotateDir(cell.direction, DIR_B));
+    SetOutFlow(neighborCell, RotateDir(cell.direction, DIR_B), true);
+    SetInFlow(cell, cell.direction, true);
     _CellsRO[neighborIdx] = neighborCell;
+    _CellsRO[cellIdx] = cell;
 
     return true;
 }
@@ -314,11 +320,12 @@ bool CommandSeparate(uint2 cellPos, uint cellIdx, Cell cell) {
         InterlockedCompareStore(_CellsRO[neighborIdx].parentDir, fromNeighbor, 0xFFFFFFFFu);
 
         // close energy flow to this cell on neighbor
-        uint neighborFlow = neighborCell.energyFlow;
-        uint flowHere = GetIntBit(neighborFlow, fromNeighbor);
+        uint flowHere = HasOutFlow(neighborCell, fromNeighbor);
         separated = separated || flowHere;
-        SetIntBit(neighborFlow, 0, fromNeighbor);
-        InterlockedExchange(_CellsRO[neighborIdx].energyFlow, neighborFlow, neighborFlow);
+        SetOutFlow(neighborCell, fromNeighbor, false);
+        SetInFlow(cell, toNeighbor, false);
+        uint storeVal;
+        InterlockedExchange(_CellsRO[neighborIdx].energyFlow, neighborCell.energyFlow, storeVal);
     }
 
     return separated;
@@ -363,6 +370,7 @@ bool CommandSendSeed(uint2 cellPos, uint cellIdx, Cell cell, uint speed) {
     seedCell.seedProps = (speed << 16) | 32;
     seedCell.energy += _GrowNrg;
     cell.energy -= _GrowNrg * 2 + _CellOrgCost;
+    seedCell.energyFlow = 0;
     _CellsRO[cellIdx] = cell;
     _CellsRO[targetIdx] = seedCell;
 

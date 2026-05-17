@@ -26,7 +26,7 @@
 struct Cell {
     uint cellType; // [0,6] 3 bits
     float energy;
-    uint energyFlow; // absolute // [0,15] 4 bits
+    uint energyFlow; // absolute // out flow [0,15] first 4 bits; in flow [0,15] second 4 bits
     uint parentDir; // [0,3] 2 bits
     uint genomeId;
     uint direction; // [0,3] 2 bits

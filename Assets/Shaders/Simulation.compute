@@ -177,16 +177,17 @@ void RerouteKernel(uint3 id : SV_DispatchThreadID)
         int toNeighbor = dir;
         int fromNeighbor = RotateDir(toNeighbor, DIR_B);
 
-        bool canSend = isNeighborValid && GetIntBit(cell.energyFlow, toNeighbor);
+        bool canSend = isNeighborValid && HasOutFlow(cell, toNeighbor);
         // if two cells wants to send energy to each other then wins the one that sending energy to its parent
         // another one should stop sending energy here and potentially change flow direction.
-        bool isNeighborSending = isNeighborValid && GetIntBit(neighborCell.energyFlow, fromNeighbor);
+        bool isNeighborSending = isNeighborValid && HasOutFlow(neighborCell, fromNeighbor);
         canSend = canSend && (!isNeighborSending || cell.parentDir == toNeighbor);
-        SetIntBit(cell.energyFlow, canSend, toNeighbor);
+        SetOutFlow(cell, toNeighbor, canSend);
+        SetInFlow(cell, toNeighbor, isNeighborSending);
     }
 
-    if (cell.cellType == CELLTYPE_WOOD && cell.energyFlow == 0 && cell.parentDir != 0xFFFFFFFFu)
-        SetIntBit(cell.energyFlow, 1, cell.parentDir);
+    if (cell.cellType == CELLTYPE_WOOD && GetOutFlow(cell) == 0 && IsCellHasParent(cell))
+        SetOutFlow(cell, cell.parentDir, 1);
 
     _CellsWO[cellIdx] = cell;
 }
@@ -213,13 +214,11 @@ void TransportKernel(uint3 id : SV_DispatchThreadID)
     for (uint dir = 0; dir < 4; ++dir) {
         READ_NEIGHBOR_CELL(cellPos, dir);
 
-        bool isNeighborValid = neighborCell.cellType > 0;
         int toNeighbor = dir;
-        int fromNeighbor = RotateDir(toNeighbor, DIR_B);
         uint neighborNeighborsToSend = DirectionsToSendEnergy(neighborCell);
 
         // Check if the neighbor is willing to send energy toward this cell.
-        uint canReceive = isNeighborValid * GetIntBit(neighborCell.energyFlow, fromNeighbor);
+        uint canReceive = HasInFlow(cell, toNeighbor);
         float amountToReceive = min(neighborCell.energy * _NrgTransportSpeed * _Timestep, neighborCell.energy / (float)neighborNeighborsToSend);
         toReceive += canReceive * step(_NrgTransportMin, neighborCell.energy) * amountToReceive;
     }
@@ -256,7 +255,7 @@ void DeathKernel(uint3 id : SV_DispatchThreadID)
         && (cell.energy <= 0.0
             || (cellType != CELLTYPE_ROOT && soil.x > _CriticalOrg)
             || (cellType != CELLTYPE_ANTENNA && soil.y > _CriticalNrg)
-            || (cellType < CELLTYPE_SPROUT && !IsCellSendEnergy(cellPos, cell) && IsCellSingle(cellPos, cell))
+            || (cellType < CELLTYPE_SPROUT && !IsCellHasParent(cell) && !IsCellSendEnergy(cell))
             // || (cellType == CELLTYPE_WOOD && c.flowDirs = 0)
         );
 }
@@ -299,7 +298,8 @@ void KillKernel(uint3 id : SV_DispatchThreadID)
                 cell.parentDir = cell.parentDir == toNeighbor ? 0xFFFFFFFFu : cell.parentDir;
 
                 // close energy flow to neighbor
-                SetIntBit(cell.energyFlow, 0, toNeighbor);
+                SetOutFlow(cell, toNeighbor, false);
+                SetInFlow(cell, toNeighbor, false);
             }
         }
     }

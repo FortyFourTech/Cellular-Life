@@ -15,9 +15,11 @@ Cell CreateCell(uint2 targetPos, uint type, uint direction, uint parentDir, uint
     newCell.activeGene = 0u;
     newCell.parentDir = parentDir;
     newCell.energy = _GrowNrg;
+    newCell.energyFlow = 0u;
     newCell.direction = direction;
     newCell.seedProps = (SPEED_NO << 16u) | 32u;
-    SetIntBit(newCell.energyFlow, type != CELLTYPE_SPROUT && type != CELLTYPE_SEED, parentDir);
+    SetOutFlow(newCell, parentDir, parentDir < 4 && type < CELLTYPE_SPROUT);
+    SetInFlow(newCell, parentDir, parentDir < 4 && type >= CELLTYPE_SPROUT);
 
     // mutate only on Sprout or Seed cells
     if (type >= CELLTYPE_SPROUT) {

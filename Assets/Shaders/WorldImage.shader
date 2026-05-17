@@ -84,13 +84,11 @@ Shader "Simulation/WorldOut"
 
                     fixed4 individualVal = fixed4(0,0,0,1);
                     for (int dir = 0; dir < 4; ++dir) {
-                        bool outFlow = GetIntBit(cellData.energyFlow, dir);
-                        READ_NEIGHBOR_CELL(pixelPos, dir);
-
-                        uint neighborFlow = neighborCell.energyFlow;
-                        bool inFlow = GetIntBit(neighborFlow, RotateDir(dir, DIR_B));
+                        bool outFlow = HasOutFlow(cellData, dir);
+                        bool inFlow = HasInFlow(cellData,dir);
 
                         if (outFlow || inFlow) {
+                            uint2 neighborPos = ShiftCoord(pixelPos, dir);
                             float2 neighborUV = float2((neighborPos.x + 0.5) / (float)_Width, (neighborPos.y + 0.5) / (float) _Height);
                             fixed4 neighborSample = tex2D(_MainTex, neighborUV);
 

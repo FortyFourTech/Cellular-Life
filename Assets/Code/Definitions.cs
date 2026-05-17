@@ -2,7 +2,12 @@
 using System;
 
 public enum CellType : uint { Empty, Leaf, Root, Antenna, Wood, Sprout, Seed };
-public enum Direction : uint { Forward, Right, Back, Left };
+public enum Direction : uint {
+    Forward = 0,
+    Right = 1,
+    Back = 2,
+    Left = 3
+};
 [Flags]
 public enum DirectionFlags : uint {
     Forward = 1 << 0,
@@ -105,13 +110,23 @@ public static class DirectionExtension {
         _ => "[-]",
     };
 
-    public static string Symbol(this DirectionFlags direction) {
+    static readonly Direction[] dirs = new Direction[] {
+        Direction.Left, Direction.Forward, Direction.Back, Direction.Right
+    };
+
+    public static string Symbol(this DirectionFlags direction, bool reverseOrder = false) {
         string result = "";
-        if ((direction & DirectionFlags.Left) != 0) result += Direction.Left.Symbol();
-        if ((direction & DirectionFlags.Forward) != 0) result += Direction.Forward.Symbol();
-        if ((direction & DirectionFlags.Back) != 0) result += Direction.Back.Symbol();
-        if ((direction & DirectionFlags.Right) != 0) result += Direction.Right.Symbol();
+
+        foreach (var dir in dirs)
+        {
+            var dirFlag = (DirectionFlags)(1 << (int)dir);
+            if ((direction & dirFlag) != 0)
+                if (reverseOrder) result += ((Direction)(((int)dir + 2) % 4)).Symbol();
+                else result += dir.Symbol();
+        }
+
         if (string.IsNullOrEmpty(result)) result = "[-]";
+
         return result;
     }
 }

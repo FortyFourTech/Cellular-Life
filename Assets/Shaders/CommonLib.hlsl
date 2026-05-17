@@ -143,27 +143,47 @@ uint2 MoveCoord(uint2 inPos, int2 offset) {
 // #endregion // Direction
 
 // #region Cell analysis
+uint GetOutFlow(in Cell cell) {
+    return cell.energyFlow & 0xfu;
+}
+uint GetInFlow(in Cell cell) {
+    return (cell.energyFlow >> 4) & 0xfu;
+}
+uint HasOutFlow(in Cell cell, uint dir) {
+    return GetIntBit(GetOutFlow(cell), dir);
+}
+uint HasInFlow(in Cell cell, uint dir) {
+    return GetIntBit(GetInFlow(cell), dir);
+}
+bool IsCellSendEnergy(in Cell cell) {
+    return GetOutFlow(cell) > 0;
+}
+bool IsCellReceiveEnergy(in Cell cell) {
+    return GetInFlow(cell) > 0;
+}
+bool IsCellHasParent(in Cell cell) {
+    return cell.parentDir < 4; // cell.parentDir == 0xFFFFFFFFu
+}
 bool IsCellSingle(uint2 cellPos, in Cell cell) {
-    return cell.parentDir == 0xFFFFFFFFu && cell.energyFlow == 0;
-}
-bool IsCellReceiveEnergy(uint2 cellPos, in Cell cell) {
-    bool result = false;
-    for (int dir = 0; dir < 4; ++dir) {
-        uint2 neighborPos = ShiftCoord(cellPos, dir);
-        uint neighborIdx = PosToIdx(neighborPos);
-        uint neighborFlow = _CellsRO[neighborIdx].energyFlow;
-        result = result || GetIntBit(neighborFlow,dir);
-    }
-    return result;
-}
-bool IsCellSendEnergy(uint2 cellPos, in Cell cell) {
-    return cell.energyFlow > 0;
+    return !IsCellHasParent(cell) && !IsCellSendEnergy(cell) && !IsCellReceiveEnergy(cell);
 }
 uint DirectionsToSendEnergy(Cell cell) {
     uint neighborsToSend = 0;
+    uint outFlow = GetOutFlow(cell);
     for (uint i = 0; i < 4; ++i) {
-        neighborsToSend += GetIntBit(cell.energyFlow, i);
+        neighborsToSend += GetIntBit(outFlow, i);
     }
     return neighborsToSend;
 }
 // #endregion // Cell analysis
+
+void SetOutFlow(inout Cell cell, uint dir, bool value) {
+    SetIntBit(cell.energyFlow, value, dir);
+    uint dirIn = GetIntBit(cell.energyFlow, dir+4);
+    SetIntBit(cell.energyFlow, !value && dirIn, dir+4);
+}
+void SetInFlow(inout Cell cell, uint dir, bool value) {
+    SetIntBit(cell.energyFlow, value, dir+4);
+    uint dirOut = GetIntBit(cell.energyFlow, dir);
+    SetIntBit(cell.energyFlow, !value && dirOut, dir);
+}

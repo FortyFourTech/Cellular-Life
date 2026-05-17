@@ -393,9 +393,11 @@ public class SimulationUI : MonoBehaviour
 
         // display all fields of CellData
         bool isSingle = inspectedCell.parentDir > 3 && inspectedCell.energyFlow == 0;
+        uint inFlow = GetInFlow(inspectedCell.energyFlow);
+        uint outFlow = GetOutFlow(inspectedCell.energyFlow);
         GUILayout.Label($"cellType: {inspectedCell.cellType.Symbol()}({inspectedCell.cellType})" + (isSingle ? " SINGLE" : ""));
         GUILayout.Label($"energy: {inspectedCell.energy:F4}");
-        GUILayout.Label($"energyFlow: {((DirectionFlags)inspectedCell.energyFlow).Symbol()} ({inspectedCell.energyFlow})");
+        GUILayout.Label($"energyFlow: Out[{((DirectionFlags)outFlow).Symbol()}] | In[{((DirectionFlags)inFlow).Symbol(true)}] | ({inspectedCell.energyFlow})");
         GUILayout.Label($"parentDir: {((Direction)inspectedCell.parentDir).Symbol()} ({inspectedCell.parentDir})");
         // GUILayout.Label($"genomeId: {inspectedCell.genomeId}");
         GUILayout.Label($"direction: {((Direction)inspectedCell.direction).Symbol()} ({inspectedCell.direction})");
@@ -656,6 +658,15 @@ public class SimulationUI : MonoBehaviour
     uint GetByte(uint container, int byteIdx)
     {
         return (container >> (byteIdx * 8)) & 0xffu;
+    }
+
+    uint GetInFlow(uint container)
+    {
+        return (container >> 4) & 0xfu;
+    }
+    uint GetOutFlow(uint container)
+    {
+        return container & 0xfu;
     }
 
     void UpdateBrush(Vector2 center, float radius, Color color)
