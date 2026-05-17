@@ -1458,20 +1458,20 @@ MonoBehaviour:
   mutationShader: {fileID: 7200000, guid: ddbb8936f8a47364eae1f178b6dcc868, type: 3}
   _genomeStorage: {fileID: 11400000, guid: 6f61eeab8d72f634e845ed54ecf76f5a, type: 2}
   SimParams:
-    _Width: 768
-    _Height: 768
+    _Width: 1280
+    _Height: 1280
     _Timestep: 0.1
     _Timestamp: 0
     _Rand: 0
-    _Sunlight: 3
-    _DiffusionRate: 0.01
+    _Sunlight: 5
+    _DiffusionRate: 0.03
     _CriticalOrg: 5
     _CriticalNrg: 5
   CellConstants:
     OrgAbsorbSpeed: 0.05
     NrgAbsorbSpeed: 0.05
     GrowNrg: 0.5
-    LifeNrgSpend: 0.05
+    LifeNrgSpend: 0.07
     LifeNrgSpendSeed: 0.005
     NrgTransportSpeed: 3
     NrgTransportMin: 0.5
