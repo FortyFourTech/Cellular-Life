@@ -203,6 +203,11 @@ void TransportKernel(uint3 id : SV_DispatchThreadID)
         return;
     }
 
+    uint neighborsToSend = DirectionsToSendEnergy(cell);
+    float lowerBound = min(cell.energy * _NrgTransportSpeed * _Timestep * neighborsToSend, _NrgTransportMin);
+    float toSend = lowerBound;
+
+    float toReceive = 0.0;
     // Pull-based transport: each cell attempts to pull energy from neighbors
     // or deplete self energy for the cells in directions of energy flow
     for (uint dir = 0; dir < 4; ++dir) {
@@ -211,17 +216,15 @@ void TransportKernel(uint3 id : SV_DispatchThreadID)
         bool isNeighborValid = neighborCell.cellType > 0;
         int toNeighbor = dir;
         int fromNeighbor = RotateDir(toNeighbor, DIR_B);
-
-        // Check if this cell is willing to send energy toward the neighbor.
-        uint canSend = isNeighborValid * GetIntBit(cell.energyFlow, toNeighbor);
-        float lowerBound = min(cell.energy, _NrgTransportMin);
-        cell.energy -= canSend * max(cell.energy - lowerBound, 0) * _NrgTransportSpeed * _Timestep;
+        uint neighborNeighborsToSend = DirectionsToSendEnergy(neighborCell);
 
         // Check if the neighbor is willing to send energy toward this cell.
         uint canReceive = isNeighborValid * GetIntBit(neighborCell.energyFlow, fromNeighbor);
-        lowerBound = min(neighborCell.energy, _NrgTransportMin);
-        cell.energy += canReceive * max(neighborCell.energy - lowerBound, 0) * _NrgTransportSpeed * _Timestep;
+        lowerBound = min(neighborCell.energy * _NrgTransportSpeed * _Timestep, _NrgTransportMin / neighborNeighborsToSend);
+        toReceive += canReceive * lowerBound;
     }
+
+    cell.energy = max(cell.energy + toReceive - toSend, 0);
 
     _CellsWO[cellIdx] = cell;
 }

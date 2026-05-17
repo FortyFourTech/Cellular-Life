@@ -159,4 +159,11 @@ bool IsCellReceiveEnergy(uint2 cellPos, in Cell cell) {
 bool IsCellSendEnergy(uint2 cellPos, in Cell cell) {
     return cell.energyFlow > 0;
 }
+uint DirectionsToSendEnergy(Cell cell) {
+    uint neighborsToSend = 0;
+    for (uint i = 0; i < 4; ++i) {
+        neighborsToSend += GetIntBit(cell.energyFlow, i);
+    }
+    return neighborsToSend;
+}
 // #endregion // Cell analysis
