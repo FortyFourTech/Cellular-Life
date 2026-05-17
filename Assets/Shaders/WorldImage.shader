@@ -4,9 +4,6 @@ Shader "Simulation/WorldOut"
         _MainTex("Main Texture", 2D) = "black" {}
         _WoodColor("Wood Color", Color) = (0.5,0.5,0.5,1)
 
-        _Width("Width", Integer) = 1024
-        _Height("Height", Integer) = 1024
-
         _RenderIndividualCells("Render individual cells", Range(0,1)) = 0.0
         _RenderFlowAsCell("Render flow as cell or as wood", Range(0,1)) = 0.0
         _IndividualCellsRenderSize("Minimal cell size to render individual cells", Float) = 1.0
@@ -64,9 +61,14 @@ Shader "Simulation/WorldOut"
                 bool renderIndividualCells = cellSize >= _IndividualCellsRenderSize;
 
                 if (renderIndividualCells) {
-                    float2 pixelPos = floor(i.uv * float2(_Width, _Height)) % float2(_Width,_Height);
-                    uint cellIdx = (uint)pixelPos.y * (uint)_Width + (uint)pixelPos.x;
+                    float2 texSize = _MainTex_TexelSize.zw;
+                    float2 pixelPosF = floor(i.uv * texSize);
+                    uint2 pixelPos = (uint2)pixelPosF % (uint2)texSize;
+                    uint cellIdx = pixelPos.y * (uint)texSize.x + pixelPos.x;
                     Cell cellData = _CellsRO[cellIdx];
+
+                    _Height = (int)texSize.y;
+                    _Width = (int)texSize.x;
 
                     // return float4(1,0,0,1);
                     // float2 cellBL = float2(
@@ -77,10 +79,7 @@ Shader "Simulation/WorldOut"
                     //     ceil(i.uv.x * _Width) / _Width,
                     //     ceil(i.uv.y * _Height) / _Height
                     // );
-                    float2 cellUV = float2(
-                        frac(i.uv.x * (float)_Width),
-                        frac(i.uv.y * (float)_Height)
-                    );
+                    float2 cellUV = frac(i.uv * texSize);
 
                     fixed4 individualVal = fixed4(0,0,0,1);
                     for (int dir = 0; dir < 4; ++dir) {
@@ -89,7 +88,7 @@ Shader "Simulation/WorldOut"
 
                         if (outFlow || inFlow) {
                             uint2 neighborPos = ShiftCoord(pixelPos, dir);
-                            float2 neighborUV = float2((neighborPos.x + 0.5) / (float)_Width, (neighborPos.y + 0.5) / (float) _Height);
+                            float2 neighborUV = (float2(neighborPos) + 0.5) / texSize;
                             fixed4 neighborSample = tex2D(_MainTex, neighborUV);
 
                             fixed4 lineStartColor = lerp(texVal, neighborSample, inFlow);
@@ -101,8 +100,8 @@ Shader "Simulation/WorldOut"
                     }
                     fixed4 shape = RenderCell(cellUV, individualVal, texVal, cellData.cellType, cellData.direction);
                     col = lerp(texVal, shape, saturate(cellData.cellType) * _RenderIndividualCells);
+                    // return float4(cellUV.xy,0,1);
                 }
-                // return float4(cellUV.xy,0,1);
                 // return float4(cellCenter,0,1);
                 // return val * float4(1,0,0,1);
                 // return lerp(texVal, shape, saturate(cellData.cellType) * _RenderIndividualCells);
