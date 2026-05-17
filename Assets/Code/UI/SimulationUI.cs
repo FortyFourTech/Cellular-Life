@@ -367,7 +367,7 @@ public class SimulationUI : MonoBehaviour
         GUILayout.Label($"Grid: {gx}, {gy}");
         GUILayout.Label($"Soil [{inspectedSoil.x};{inspectedSoil.y}]");
 
-#if DEVELOPMENT_BUILD
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
         GUILayout.Label($"Debug [{inspectedDebug.x};{inspectedDebug.y}]");
 
         ReadCommandFromGpu(gx, gy);
@@ -377,7 +377,7 @@ public class SimulationUI : MonoBehaviour
         // read cell from GPU
         ReadCellFromGpu(gx, gy);
 
-#if DEVELOPMENT_BUILD
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
         showInvalidCell = GUILayout.Toggle(showInvalidCell, "Show invalid cell");
 #endif // DEVELOPMENT_BUILD
 
