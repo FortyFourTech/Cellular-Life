@@ -142,7 +142,7 @@ public struct CellConstants {
     public float LifeNrgSpendSeed;    // 0.005
     public float NrgTransportSpeed;   // 2.0
     public float NrgTransportMin;     // 1.0
-    uint _pad0;
+    public float CellOrgCost;         // 0.1
 }
 
 public struct CommandEntry {

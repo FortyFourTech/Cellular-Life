@@ -225,8 +225,11 @@ public class SimulationUI : MonoBehaviour
             _cellConstants.OrgAbsorbSpeed = GUILayout.HorizontalSlider(_cellConstants.OrgAbsorbSpeed, 0.05f, 1f);
             _cellConstants.NrgAbsorbSpeed = _cellConstants.OrgAbsorbSpeed;
 
-            GUILayout.Label($"Grow energy spend: {_cellConstants.GrowNrg:F2}");
+            GUILayout.Label($"Grow energy cost: {_cellConstants.GrowNrg:F2}");
             _cellConstants.GrowNrg = GUILayout.HorizontalSlider(_cellConstants.GrowNrg, 0.01f, 2f);
+
+            GUILayout.Label($"Cell organics amount: {_cellConstants.CellOrgCost:F2}");
+            _cellConstants.CellOrgCost = GUILayout.HorizontalSlider(_cellConstants.CellOrgCost, 0.01f, 1f);
 
             GUILayout.Label($"Life spend: {_cellConstants.LifeNrgSpend:F2}");
             _cellConstants.LifeNrgSpend = GUILayout.HorizontalSlider(_cellConstants.LifeNrgSpend, 0.01f, 1f);

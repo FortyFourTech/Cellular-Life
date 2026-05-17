@@ -190,7 +190,7 @@ bool CommandGrow(uint2 cellPos, uint cellIdx, Cell cell) {
     }
 
     if (growNum == 0) return true;
-    if (cell.energy < (_GrowNrg * (growNum+1))) return false;
+    if (cell.energy < (_GrowNrg * (growNum+1) + _CellOrgCost)) return false;
 
     uint cellDir = cell.direction;
     bool growed = false;
@@ -205,7 +205,7 @@ bool CommandGrow(uint2 cellPos, uint cellIdx, Cell cell) {
         ) continue;
 
         Cell newCell = CreateCell(targetCoord, typeToCreate, createDir, RotateDir(createDir, DIR_B), cell.genomeId);
-        cell.energy -= _GrowNrg;
+        cell.energy -= _GrowNrg + _CellOrgCost;
         SetIntBit(cell.energyFlow, typeToCreate == CELLTYPE_SPROUT || typeToCreate == CELLTYPE_SEED, createDir);
         _CellsRO[targetIdx] = newCell;
 
@@ -356,13 +356,13 @@ bool CommandSendSeed(uint2 cellPos, uint cellIdx, Cell cell, uint speed) {
     uint targetIdx = PosToIdx(targetPos);
     Cell targetCell = _CellsRO[targetIdx];
 
-    if (cell.energy < _GrowNrg * 3 || targetCell.cellType > 0)
+    if (cell.energy < (_GrowNrg * 3 + _CellOrgCost) || targetCell.cellType > 0)
         return false;
 
     Cell seedCell = CreateCell(targetPos, CELLTYPE_SEED, cellDir, 0xFFFFFFFFu, cell.genomeId);
     seedCell.seedProps = (speed << 16) | 32;
     seedCell.energy += _GrowNrg;
-    cell.energy -= _GrowNrg * 2;
+    cell.energy -= _GrowNrg * 2 + _CellOrgCost;
     _CellsRO[cellIdx] = cell;
     _CellsRO[targetIdx] = seedCell;
 

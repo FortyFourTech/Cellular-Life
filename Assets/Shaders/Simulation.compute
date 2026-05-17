@@ -274,7 +274,7 @@ void KillKernel(uint3 id : SV_DispatchThreadID)
             uint coordIdx = PosToIdx(coord);
             Cell coordCell = _CellsRO[coordIdx];
             bool killCoordCell = (coordCell.cellType > 0) && _KillCells[coordIdx];
-            soil.x += killCoordCell * _GrowNrg * ((dx == 0 && dy == 0) ? 0.5 : (0.5/8.0));
+            soil.x += killCoordCell * _CellOrgCost * ((dx == 0 && dy == 0) ? 0.5 : (0.5/8.0));
             soil.y += killCoordCell * coordCell.energy * (dx == 0 && dy == 0);
         }
     }

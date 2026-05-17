@@ -1475,6 +1475,7 @@ MonoBehaviour:
     LifeNrgSpendSeed: 0.005
     NrgTransportSpeed: 3
     NrgTransportMin: 0.5
+    CellOrgCost: 0.1
 --- !u!1 &901811328
 GameObject:
   m_ObjectHideFlags: 0

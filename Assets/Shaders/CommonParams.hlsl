@@ -24,7 +24,7 @@ cbuffer _CellConstants {
     float _LifeNrgSpendSeed;    // 0.005
     float _NrgTransportSpeed;   // 2.0
     float _NrgTransportMin;     // 1.0
-    uint _CellConstantsPad0;
+    float _CellOrgCost;         // 0.1
 }
 // #define CELL_ORG_COST       0.5
 
