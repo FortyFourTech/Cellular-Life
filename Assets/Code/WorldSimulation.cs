@@ -712,9 +712,9 @@ public class WorldSimulation : MonoBehaviour
                 {
                     cb.DispatchCompute(behaviorShader, kernelCmdIdx[i], cx, cy, 1);
                 }
+                _soilTex.SwapResource(cb);
                 cb.DispatchCompute(simulationShader, kernelKillIdx, cx, cy, 1);
                 _soilTex.SwapResource(cb);
-                _soilTex.Sync(cb);
                 _cellsBuffer.SwapResource(cb);
                 _cellsBuffer.Sync(cb);
                 break;
