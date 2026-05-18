@@ -664,6 +664,9 @@ public class WorldSimulation : MonoBehaviour
         switch (substepIdx)
         {
             case 0: // soil energy
+                var zeros = new CommandEntry[SimParams._Width * SimParams._Height];
+                cb.SetBufferData(commandBuffer, zeros);
+
                 cb.DispatchCompute(simulationShader, kernelEnergyIdx, cx, cy, 1);
                 _soilTex.SwapResource(cb);
                 break;

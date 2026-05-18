@@ -1,11 +1,22 @@
 #pragma once
 
+#define CELLTYPE_EMPTY      0
 #define CELLTYPE_LEAF       1
 #define CELLTYPE_ROOT       2
 #define CELLTYPE_ANTENNA    3
 #define CELLTYPE_WOOD       4
 #define CELLTYPE_SPROUT     5
 #define CELLTYPE_SEED       6
+
+#define CELLTYPE_EMPTY_MASK     (1 << CELLTYPE_EMPTY)
+#define CELLTYPE_LEAF_MASK      (1 << CELLTYPE_LEAF)
+#define CELLTYPE_ROOT_MASK      (1 << CELLTYPE_ROOT)
+#define CELLTYPE_ANTENNA_MASK   (1 << CELLTYPE_ANTENNA)
+#define CELLTYPE_WOOD_MASK      (1 << CELLTYPE_WOOD)
+#define CELLTYPE_SPROUT_MASK    (1 << CELLTYPE_SPROUT)
+#define CELLTYPE_SEED_MASK      (1 << CELLTYPE_SEED)
+#define CELLTYPE_ALL_MASK       0xFFFFFFFFu
+#define CELLTYPE_VALID_MASK     (CELLTYPE_ALL_MASK & !CELLTYPE_EMPTY_MASK)
 
 #define GENES_NUM 32
 
@@ -22,6 +33,8 @@
 #define CMD_SKIP 2u
 #define CMD_GROW 3u
 #define CMD_MOVE 4u
+
+#define PARENT_NO 0xFFFFFFFFu
 
 struct Cell {
     uint cellType; // [0,6] 3 bits
@@ -64,7 +77,7 @@ struct CommandEntry {
     uint commandId;
     uint successGene;
     uint failGene;
-    uint pad0;
+    uint executionFlags;
 };
 
 struct SimStats

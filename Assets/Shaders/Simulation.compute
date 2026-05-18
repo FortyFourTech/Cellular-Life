@@ -317,7 +317,6 @@ void SeedKernel(uint3 id : SV_DispatchThreadID)
     READ_CELL(id.xy);
 
     if (cell.cellType != CELLTYPE_SEED) { // only seeds
-        // _CellsWO[cellIdx] = cell;
         return;
     }
 
@@ -327,7 +326,6 @@ void SeedKernel(uint3 id : SV_DispatchThreadID)
     [branch]
     if (seedTimer == 255u) {
         ConvertToSprout(cell);
-        _CellsRO[cellIdx] = cell;
     } else {
         // deplete timer
         --seedTimer;
@@ -349,16 +347,14 @@ void SeedKernel(uint3 id : SV_DispatchThreadID)
                 KillCell(targetCoord);
                 KillCell(cellPos);
             } else {
-                // copy self in movement direction
-                _CellsRO[targetIdx] = cell;
-
-                // erase self in current position
-                _CellsRO[cellIdx] = (Cell)0;
+                // move using move command
+                CommandEntry ce = (CommandEntry)0;
+                ce.commandId = CMD_MOVE;
+                _CommandBuffer[cellIdx] = ce;
             }
-        } else {
-            _CellsRO[cellIdx] = cell;
         }
     }
+    _CellsRO[cellIdx] = cell;
 }
 
 #define THREADS_COUNT 512
