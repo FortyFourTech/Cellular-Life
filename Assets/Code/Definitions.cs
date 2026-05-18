@@ -164,7 +164,7 @@ public struct CommandEntry {
     public uint commandId;
     public uint successGene;
     public uint failGene;
-    uint pad0;
+    public uint execution;
 };
 
 public struct SimStats

@@ -2,6 +2,7 @@
 
 #pragma kernel Cmd_1
 #pragma kernel Cmd_2
+#pragma kernel Cmd_301
 #pragma kernel Cmd_3
 #pragma kernel Cmd_4
 #pragma kernel Cmd_5
@@ -178,50 +179,85 @@ uint ChooseGrowType(uint geneParam) {
         geneParam < 95 ? CELLTYPE_ROOT :
         0;
 }
-bool CommandGrow(uint2 cellPos, uint cellIdx, Cell cell) {
-    uint growDirections = _Genomes[cell.genomeId].genes[cell.activeGene].growDirections;
+bool CommandGrow(uint2 cellPos, uint cellIdx, inout Cell cell, CommandEntry command) {
+    if (cell.cellType != CELLTYPE_SPROUT) return false;
+
+    uint grownDirections = command.executionFlags;
+    uint growTypes = _Genomes[cell.genomeId].genes[cell.activeGene].growDirections;
+    uint cellDir = cell.direction;
 
     uint growNum = 0;
+    uint grownNum = 0;
     // unpack directions
     uint directionTypes[4];
+    bool directionGrown[4];
     for (int i=0; i < 4; ++i) {
-        directionTypes[i] = ChooseGrowType(GetIntByte(growDirections, i));
-        growNum += directionTypes[i] > 0;
+        uint absDir = RotateDir(cellDir, i);
+        directionTypes[absDir] = ChooseGrowType(GetIntByte(growTypes, i));// * GetIntBit(grownDirections, absDir);
+        directionGrown[absDir] = GetIntBit(grownDirections, absDir);
+        growNum += directionTypes[absDir] > 0;
+        grownNum += directionGrown[absDir];
     }
 
-    if (growNum == 0) return true;
-    if (cell.energy < (_GrowNrg * (growNum+1) + _CellOrgCost)) return false;
+    if (grownNum == 0) {
+        return growNum == 0
+            || cell.energy >= (_GrowNrg * (growNum+1) + _CellOrgCost);
+    }
 
-    uint cellDir = cell.direction;
-    bool growed = false;
+    cell.energy -= (_GrowNrg + _CellOrgCost) * grownNum;
 
     for (int i = 0; i < 4; i++) {
-        uint typeToCreate = directionTypes[i];
-        uint createDir = RotateDir(i, cellDir);
-        uint2 targetCoord = ShiftCoord(cellPos, createDir);
-        uint targetIdx = PosToIdx(targetCoord);
-        if (typeToCreate == 0
-            || _CellsRO[targetIdx].cellType != 0
-        ) continue;
+        uint absDir = RotateDir(i, cellDir);
+        uint typeToCreate = directionTypes[absDir] * directionGrown[absDir];
+        if (typeToCreate == 0) continue;
 
-        uint parentDir = RotateDir(createDir, DIR_B);
-        Cell newCell = CreateCell(targetCoord, typeToCreate, createDir, parentDir, cell.genomeId);
-        cell.energy -= _GrowNrg + _CellOrgCost;
-        SetOutFlow(cell, createDir, typeToCreate >= CELLTYPE_SPROUT);
-        SetInFlow(newCell, parentDir, typeToCreate >= CELLTYPE_SPROUT);
-        SetInFlow(cell, createDir, typeToCreate < CELLTYPE_SPROUT);
-        SetOutFlow(newCell, parentDir, typeToCreate < CELLTYPE_SPROUT);
-        _CellsRO[targetIdx] = newCell;
-
-        growed = true;
+        SetOutFlow(cell, absDir, typeToCreate >= CELLTYPE_SPROUT);
+        SetInFlow(cell, absDir, typeToCreate < CELLTYPE_SPROUT);
     }
-
-    if (!growed) return false;
 
     // make a wood from itself
     ConvertToWood(cell);
     _CellsRO[cellIdx] = cell;
+    _Debug[cellIdx].y = 1 + grownNum;
 
+    return true;
+}
+bool CommandGrowHere(uint2 cellPos, uint cellIdx, inout Cell cell) {
+    if (cell.cellType > 0) return false;
+
+    // check neighbors for grow command
+    for (int dir = 0; dir < 4; ++dir) {
+        READ_NEIGHBOR_CELL(cellPos, dir);
+        CommandEntry ce = _CommandBuffer[neighborIdx];
+
+        if (ce.commandId != CMD_GROW || cell.cellType > 0) continue;
+
+        uint growDirections = _Genomes[neighborCell.genomeId].genes[neighborCell.activeGene].growDirections;
+
+        uint growNum = 0;
+        // unpack directions
+        uint directionTypes[4];
+        uint neighborDir = neighborCell.direction;
+        for (int i=0; i < 4; ++i) {
+            directionTypes[RotateDir(i, neighborDir)] = ChooseGrowType(GetIntByte(growDirections, i));
+            growNum += directionTypes[i] > 0;
+        }
+
+        uint fromNeighbor = RotateDir(dir, DIR_B);
+        uint typeToCreate = directionTypes[fromNeighbor];
+
+        if (growNum == 0
+            || neighborCell.energy < (_GrowNrg * (growNum+1) + _CellOrgCost)
+            || typeToCreate == 0)
+            continue;
+
+        cell = CreateCell(cellPos, typeToCreate, fromNeighbor, dir, neighborCell.genomeId);
+        SetInFlow(cell, dir, typeToCreate >= CELLTYPE_SPROUT);
+        SetOutFlow(cell, dir, typeToCreate < CELLTYPE_SPROUT);
+        InterlockedAdd(_CommandBuffer[neighborIdx].executionFlags, 1u << fromNeighbor);
+        _Debug[cellIdx].x = 1 + dir;
+    }
+    _CellsRO[cellIdx] = cell;
     return true;
 }
 bool CommandMove(uint2 cellPos, inout uint cellIdx, Cell cell/* , uint moveDir */) {
@@ -415,8 +451,8 @@ void DecisionKernel(uint3 id : SV_DispatchThreadID)
 
     uint commNum = isSingle ? SINGLE_COMM_NUM : COMM_NUM;
 
-    static const uint commandLookupSingle[] = {1,2,3,4,5,6,7,8,9,10};
-    static const uint commandLookupCommon[] = {1,2,6,11,12,13,14,15,16,17,18,19,20};
+    static const uint commandLookupSingle[] = {2,3,4,5,6,7,8,9,10,11};
+    static const uint commandLookupCommon[] = {2,3,7,12,13,14,15,16,17,18,19,20,21};
 
     if (check) {
         uint tmp = UnpackInt1(isSingle ? gene.aloneCommands : gene.condResult) % (commNum * 2u);
@@ -444,7 +480,7 @@ void DecisionKernel(uint3 id : SV_DispatchThreadID)
 }
 
 // Per-command kernels: each executes its command only if command buffer matches
-#define DECL_CMD_KERNEL(ID) \
+#define DECL_CMD_KERNEL(ID, executeOnNonCommandCells) \
 [numthreads(8,8,1)] \
 void Cmd_##ID(uint3 dtid : SV_DispatchThreadID) \
 { \
@@ -453,15 +489,15 @@ void Cmd_##ID(uint3 dtid : SV_DispatchThreadID) \
     uint cellIdx = PosToIdx(cellPos); \
     Cell cell = _CellsRO[cellIdx]; \
     CommandEntry ce = _CommandBuffer[cellIdx]; \
-    if (cell.cellType != CELLTYPE_SPROUT \
-        || ce.commandId != (ID)) \
+    if ((cell.cellType != CELLTYPE_SPROUT \
+        || ce.commandId != (ID)) && !executeOnNonCommandCells) \
         return; \
-    bool isSingle = IsCellSingle(cellPos, cell); \
     bool res = false; \
     /* call the relevant command by ID */ \
     /* map IDs to functions */ \
     if ((ID) == 2u) { res = CommandSkip(); } \
-    else if ((ID) == 3u) { res = CommandGrow(cellPos, cellIdx, cell); } \
+    else if ((ID) == 301u) { CommandGrowHere(cellPos, cellIdx, cell); } \
+    else if ((ID) == 3u) { res = CommandGrow(cellPos, cellIdx, cell, ce); } \
     else if ((ID) == 4u) { res = CommandMove(cellPos, cellIdx, cell); } \
     else if ((ID) == 5u) { res = CommandRotate(cellPos, cellIdx, cell, DIR_R); } \
     else if ((ID) == 6u) { res = CommandRotate(cellPos, cellIdx, cell, DIR_L); } \
@@ -482,30 +518,32 @@ void Cmd_##ID(uint3 dtid : SV_DispatchThreadID) \
     else if ((ID) == 21u) { res = CommandSpitEnergy(cellPos); } \
  \
     /* update active gene based on result */ \
-    _CellsRO[cellIdx].activeGene = (res ? ce.successGene : ce.failGene) % GENES_NUM; \
+    cell.activeGene = (res ? ce.successGene : ce.failGene) % GENES_NUM; \
+    _CellsRO[cellIdx] = cell; \
  \
     /* _CommandBuffer[cellIdx] = (CommandEntry)0; */ \
 }
 
 // Instantiate kernels for command IDs 0..19
-DECL_CMD_KERNEL(1)
-DECL_CMD_KERNEL(2)
-DECL_CMD_KERNEL(3)
-DECL_CMD_KERNEL(4)
-DECL_CMD_KERNEL(5)
-DECL_CMD_KERNEL(6)
-DECL_CMD_KERNEL(7)
-DECL_CMD_KERNEL(8)
-DECL_CMD_KERNEL(9)
-DECL_CMD_KERNEL(10)
-DECL_CMD_KERNEL(11)
-DECL_CMD_KERNEL(12)
-DECL_CMD_KERNEL(13)
-DECL_CMD_KERNEL(14)
-DECL_CMD_KERNEL(15)
-DECL_CMD_KERNEL(16)
-DECL_CMD_KERNEL(17)
-DECL_CMD_KERNEL(18)
-DECL_CMD_KERNEL(19)
-DECL_CMD_KERNEL(20)
-DECL_CMD_KERNEL(21)
+DECL_CMD_KERNEL(1, false)
+DECL_CMD_KERNEL(2, false)
+DECL_CMD_KERNEL(301, true)
+DECL_CMD_KERNEL(3, false)
+DECL_CMD_KERNEL(4, false)
+DECL_CMD_KERNEL(5, false)
+DECL_CMD_KERNEL(6, false)
+DECL_CMD_KERNEL(7, false)
+DECL_CMD_KERNEL(8, false)
+DECL_CMD_KERNEL(9, false)
+DECL_CMD_KERNEL(10, false)
+DECL_CMD_KERNEL(11, false)
+DECL_CMD_KERNEL(12, false)
+DECL_CMD_KERNEL(13, false)
+DECL_CMD_KERNEL(14, false)
+DECL_CMD_KERNEL(15, false)
+DECL_CMD_KERNEL(16, false)
+DECL_CMD_KERNEL(17, false)
+DECL_CMD_KERNEL(18, false)
+DECL_CMD_KERNEL(19, false)
+DECL_CMD_KERNEL(20, false)
+DECL_CMD_KERNEL(21, false)

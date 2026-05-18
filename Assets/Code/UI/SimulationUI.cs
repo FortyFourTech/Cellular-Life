@@ -61,8 +61,8 @@ public class SimulationUI : MonoBehaviour
 
     SimParams _simParams;
     CellConstants _cellConstants;
-    private static readonly uint[] commandLookupSingle = {1,2,3,4,5,6,7,8,9,10};
-    private static readonly uint[] commandLookupCommon = {1,2,6,11,12,13,14,15,16,17,18,19,20};
+    private static readonly uint[] commandLookupSingle = {2,3,4,5,6,7,8,9,10,11};
+    private static readonly uint[] commandLookupCommon = {2,3,7,12,13,14,15,16,17,18,19,20,21};
 
     void Reset()
     {
@@ -371,7 +371,7 @@ public class SimulationUI : MonoBehaviour
         GUILayout.Label($"Debug [{inspectedDebug.x};{inspectedDebug.y}]");
 
         ReadCommandFromGpu(gx, gy);
-        GUILayout.Label($"Last cell command: [{inspectedCommand.commandId}]({inspectedCommand.successGene},{inspectedCommand.failGene})");
+        GUILayout.Label($"Last cell command: [{inspectedCommand.commandId}]({inspectedCommand.successGene},{inspectedCommand.failGene}) = {inspectedCommand.execution}");
 #endif // DEVELOPMENT_BUILD
 
         // read cell from GPU

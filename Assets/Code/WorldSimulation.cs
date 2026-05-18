@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -38,7 +39,7 @@ public class WorldSimulation : MonoBehaviour
     int kernelSeedIdx;
     // int kernelBehaviorIdx;
     int kernelDecisionIdx;
-    int[] kernelCmdIdx = new int[20];
+    int[] kernelCmdIdx = new int[21];
     int kernelStatsIdx;
     int kernelMutOrganicsIdx = -1;
     int kernelMutEnergyIdx = -1;
@@ -111,10 +112,19 @@ public class WorldSimulation : MonoBehaviour
         // kernelBehaviorIdx = simulationShader.FindKernel("BehaviorKernel");
         kernelStatsIdx = simulationShader.FindKernel("StatsKernel");
 
-        try { kernelDecisionIdx = behaviorShader.FindKernel("DecisionKernel"); } catch { kernelDecisionIdx = -1; }
-        for (int i = 0; i < kernelCmdIdx.Length; i++) {
-            try { kernelCmdIdx[i] = behaviorShader.FindKernel($"Cmd_{i+1}"); } catch { kernelCmdIdx[i] = -1; }
+        kernelDecisionIdx = behaviorShader.FindKernel("DecisionKernel");
+        List<int> kernelCmdIndexes = new List<int>();
+        for (int cmdIdx = 1; cmdIdx <= 21; cmdIdx++) {
+            // add "{i}01", "{i}02", ...
+            for (int subIdx = 1; subIdx < 10; subIdx++)
+            {
+                if (behaviorShader.HasKernel($"Cmd_{cmdIdx}0{subIdx}")) {
+                    kernelCmdIndexes.Add(behaviorShader.FindKernel($"Cmd_{cmdIdx}0{subIdx}"));
+                }
+            }
+            kernelCmdIndexes.Add(behaviorShader.FindKernel($"Cmd_{cmdIdx}"));
         }
+        kernelCmdIdx = kernelCmdIndexes.ToArray();
 
         // rendertextures
         _soilTex = new PingPongTexture(SimParams._Width, SimParams._Height, RenderTextureFormat.RGFloat, "_SoilTex");
