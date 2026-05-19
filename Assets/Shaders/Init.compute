@@ -23,7 +23,7 @@ cbuffer InitParams
 [numthreads(8,8,1)]
 void InitOrganicsKernel(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x > _Width || id.y > _Height) return;
+    GUARD_CELL_COORD(id.xy);
 
     uint2 pos = uint2(id.x, id.y);
     float2 cur = _SoilTexRO[pos];
@@ -34,7 +34,7 @@ void InitOrganicsKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(8,8,1)]
 void InitEnergyKernel(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x > _Width || id.y > _Height) return;
+    GUARD_CELL_COORD(id.xy);
 
     uint2 pos = uint2(id.x, id.y);
     float2 cur = _SoilTexRO[pos];
@@ -45,6 +45,8 @@ void InitEnergyKernel(uint3 id : SV_DispatchThreadID)
 [numthreads(1,1,1)]
 void InitCells(uint3 id : SV_DispatchThreadID)
 {
+    GUARD_CELL_COORD(id.xy);
+
     uint2 cellPos = id.xy * 32;
     uint cellIdx = PosToIdx(cellPos);
 
@@ -64,6 +66,8 @@ void InitCells(uint3 id : SV_DispatchThreadID)
 [numthreads(8,8,1)]
 void CleanCells(uint3 id : SV_DispatchThreadID)
 {
+    GUARD_CELL_COORD(id.xy);
+
     uint2 cellPos = id.xy;
     uint cellIdx = PosToIdx(cellPos);
     _CellsRO[cellIdx] = (Cell)0;
