@@ -60,6 +60,7 @@ public class WorldSimulation : MonoBehaviour
     GraphicsBuffer singleCellBuffer;
     GraphicsBuffer singleGenomeBuffer;
     GraphicsBuffer singleCommandbuffer;
+    CommandBuffer _fullSimCB;
 
     bool organicsScheduled = false;
     bool energyScheduled = false;
@@ -92,9 +93,10 @@ public class WorldSimulation : MonoBehaviour
         InitWorld();
         PopulateWorld();
         // CreateTestCells();
+        InitSimPipeline();
     }
 
-    public void InitGpuResources()
+    private void InitGpuResources()
     {
         if (simulationShader == null) { Debug.LogError("Assign Simulation.compute to simulationShader"); return; }
 
@@ -320,31 +322,62 @@ public class WorldSimulation : MonoBehaviour
         cb.Release();
     }
 
-    public void Step()
+    private void InitSimPipeline()
     {
-        RunPendingMutatorOperations();
-
-        var cb = new CommandBuffer();
-        cb.name = "SimulationPipeline";
+        _fullSimCB = new CommandBuffer
+        {
+            name = "SimulationPipeline"
+        };
 
         int cx = Mathf.CeilToInt(SimParams._Width / 8f);
         int cy = Mathf.CeilToInt(SimParams._Height / 8f);
 
-        UpdateTimestamp();
-        cellConstantsBuffer.UpdateData(CellConstants);
-        _soilTex.SetResources(cb);
-        _cellsBuffer.SetResources(cb);
+        // _fullSimCB.BeginSample("SimulationPipeline");
+        _soilTex.SetResources(_fullSimCB);
+        _cellsBuffer.SetResources(_fullSimCB);
 
         for (int i = _substepIdx; i < _substeps; i++)
         {
-            _AddSubstep(cb, cx, cy, i);
+            _AddSubstep(_fullSimCB, cx, cy, i);
             // _substepIdx = (_substepIdx + 1) % _substeps;
         }
+        // _fullSimCB.EndSample("SimulationPipeline");
+    }
 
-        Graphics.ExecuteCommandBuffer(cb);
-        cb.Release();
+    public void Step()
+    {
+        RunPendingMutatorOperations();
 
-        _substepIdx = 0;
+        if (_substepIdx == 0)
+        {
+            Graphics.ExecuteCommandBuffer(_fullSimCB);
+        }
+        else
+        {
+            var cb = new CommandBuffer
+            {
+                name = "SimulationPipeline"
+            };
+
+            int cx = Mathf.CeilToInt(SimParams._Width / 8f);
+            int cy = Mathf.CeilToInt(SimParams._Height / 8f);
+
+            UpdateTimestamp();
+            cellConstantsBuffer.UpdateData(CellConstants);
+            _soilTex.SetResources(cb);
+            _cellsBuffer.SetResources(cb);
+
+            for (int i = _substepIdx; i < _substeps; i++)
+            {
+                _AddSubstep(cb, cx, cy, i);
+                // _substepIdx = (_substepIdx + 1) % _substeps;
+            }
+
+            Graphics.ExecuteCommandBuffer(cb);
+            cb.Release();
+
+            _substepIdx = 0;
+        }
     }
 
     private void RunPendingMutatorOperations()
@@ -381,6 +414,7 @@ public class WorldSimulation : MonoBehaviour
 
     private void OnDestroy()
     {
+        _fullSimCB?.Release();
         simParamsBuffer?.Release();
         cellConstantsBuffer?.Release();
         _cellsBuffer.Dispose();
@@ -455,7 +489,7 @@ public class WorldSimulation : MonoBehaviour
         _soilTex.SetResources(cb);
         int groups = Mathf.CeilToInt((float)count / 64f);
         cb.DispatchCompute(mutationShader, kernelMutOrganicsIdx, groups, 1, 1);
-        _soilTex.SwapResource(cb);
+        _soilTex.Sync(cb);
 
         if (runImmediately) {
             Graphics.ExecuteCommandBuffer(cb);
@@ -481,7 +515,7 @@ public class WorldSimulation : MonoBehaviour
         _soilTex.SetResources();
         int groups = Mathf.CeilToInt((float)count / 64f);
         cb.DispatchCompute(mutationShader, kernelMutEnergyIdx, groups, 1, 1);
-        _soilTex.SwapResource(cb);
+        _soilTex.Sync(cb);
 
         if (runImmediately) {
             Graphics.ExecuteCommandBuffer(cb);
@@ -509,7 +543,7 @@ public class WorldSimulation : MonoBehaviour
         int cx = Mathf.CeilToInt(SimParams._Width / 8f);
         int cy = Mathf.CeilToInt(SimParams._Height / 8f);
         cb.DispatchCompute(simulationShader, kernelKillIdx, cx, cy, 1);
-        _cellsBuffer.SwapResource(cb);
+        _cellsBuffer.Sync(cb);
 
         if (runImmediately) {
             Graphics.ExecuteCommandBuffer(cb);
@@ -664,61 +698,86 @@ public class WorldSimulation : MonoBehaviour
         switch (substepIdx)
         {
             case 0: // soil energy
+                cb.BeginSample("Energy diffuse kernel");
                 var zeros = new CommandEntry[SimParams._Width * SimParams._Height];
                 cb.SetBufferData(commandBuffer, zeros);
 
                 cb.DispatchCompute(simulationShader, kernelEnergyIdx, cx, cy, 1);
                 _soilTex.SwapResource(cb);
+                cb.EndSample("Energy diffuse kernel");
                 break;
             case 1: // leafs
+                cb.BeginSample("Leafs kernel");
                 cb.DispatchCompute(simulationShader, kernelLeafIdx, cx, cy, 1);
+                cb.EndSample("Leafs kernel");
                 break;
             case 2: // roots
+                cb.BeginSample("Roots kernel");
                 cb.DispatchCompute(simulationShader, kernelRootIdx, cx, cy, 1);
+                cb.EndSample("Roots kernel");
                 _soilTex.SwapResource(cb);
                 break;
             case 3: // antennas
+                cb.BeginSample("Antennas kernel");
                 cb.DispatchCompute(simulationShader, kernelAntennaIdx, cx, cy, 1);
+                cb.EndSample("Antennas kernel");
                 _soilTex.SwapResource(cb);
+                // cb.EndSample("Sim base");
                 break;
             case 4: // reroute
+                cb.BeginSample("Reroute kernel");
                 cb.DispatchCompute(simulationShader, kernelRerouteIdx, cx, cy, 1);
                 _cellsBuffer.SwapResource(cb);
+                cb.EndSample("Reroute kernel");
                 break;
             case 5: // transport
+                cb.BeginSample("Energy transport kernel");
                 cb.DispatchCompute(simulationShader, kernelTransportIdx, cx, cy, 1);
                 _cellsBuffer.SwapResource(cb);
+                cb.EndSample("Energy transport kernel");
                 break;
             case 6: // energy absorption
+                cb.BeginSample("Energy absorption kernel");
                 cb.DispatchCompute(simulationShader, kernelAbsorbIdx, cx, cy, 1);
+                cb.EndSample("Energy absorption kernel");
                 break;
             case 7: // death
+                cb.BeginSample("Dying kernel");
                 cb.DispatchCompute(simulationShader, kernelDeathIdx, cx, cy, 1);
                 cb.DispatchCompute(simulationShader, kernelKillIdx, cx, cy, 1);
                 _soilTex.SwapResource(cb);
                 _cellsBuffer.SwapResource(cb);
+                cb.EndSample("Dying kernel");
                 break;
             case 8: // seeds
+                cb.BeginSample("Seeds kernel");
                 cb.DispatchCompute(simulationShader, kernelSeedIdx, cx, cy, 1);
                 cb.DispatchCompute(simulationShader, kernelKillIdx, cx, cy, 1);
                 _soilTex.SwapResource(cb);
                 _cellsBuffer.SwapResource(cb);
+                cb.EndSample("Seeds kernel");
                 break;
             case 9: // sprout decision
+                cb.BeginSample("Decision kernel");
                 cb.DispatchCompute(behaviorShader, kernelDecisionIdx, cx, cy, 1);
+                cb.EndSample("Decision kernel");
                 break;
             case 10: // sprout commands
+                cb.BeginSample("Command kernels");
                 for (int i = 0; i < kernelCmdIdx.Length; ++i)
                 {
+                    cb.BeginSample($"Command {i+1} kernel");
                     cb.DispatchCompute(behaviorShader, kernelCmdIdx[i], cx, cy, 1);
+                    cb.EndSample($"Command {i+1} kernel");
                 }
                 _soilTex.SwapResource(cb);
                 cb.DispatchCompute(simulationShader, kernelKillIdx, cx, cy, 1);
-                _soilTex.SwapResource(cb);
-                _cellsBuffer.SwapResource(cb);
-                _cellsBuffer.Sync(cb);
+                _soilTex.Sync(cb);
+                // _cellsBuffer.Sync(cb);
+                cb.EndSample("Command kernels");
                 break;
             case 11: // stats
+                cb.BeginSample("Stats kernel");
                 cb.DispatchCompute(simulationShader, kernelStatsIdx, 1, 1, 1);
                 cb.RequestAsyncReadback(statsBuffer, request =>
                 {
@@ -730,6 +789,7 @@ public class WorldSimulation : MonoBehaviour
                     var data = request.GetData<SimStats>();
                     stats = data[0];
                 });
+                cb.EndSample("Stats kernel");
                 break;
         }
     }
