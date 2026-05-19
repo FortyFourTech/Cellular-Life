@@ -96,6 +96,6 @@ struct SimStats
 };
 
 // Размер группы
-#define GROUP_SIZE 16
+#define GROUP_SIZE 8
 // Размер кэша с учетом соседей со всех сторон (+1 слева, +1 справа...)
 #define CACHE_SIZE (GROUP_SIZE + 2)

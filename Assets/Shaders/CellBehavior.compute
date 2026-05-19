@@ -221,15 +221,16 @@ bool CommandGrow(uint2 cellPos, uint cellIdx, inout Cell cell, CommandEntry comm
 
     return true;
 }
-bool CommandGrowHere(uint2 cellPos, uint cellIdx, inout Cell cell) {
+bool CommandGrowHere(uint2 cellPos, uint2 groupThreadID, inout Cell cell) {
     if (cell.cellType > 0) return false;
 
+    uint2 cachePos = CachePos(groupThreadID);
     // check neighbors for grow command
     for (int dir = 0; dir < 4; ++dir) {
-        READ_NEIGHBOR_CELL(cellPos, dir);
-        CommandEntry ce = _CommandBuffer[neighborIdx];
+        READ_CACHED_NEIGHBOR_CELL(cachePos, dir);
+        READ_CACHED_COMMAND(neighborPos);
 
-        if (ce.commandId != CMD_GROW || cell.cellType > 0) continue;
+        if (neighborCmd.commandId != CMD_GROW || cell.cellType > 0) continue;
 
         uint growDirections = _Genomes[neighborCell.genomeId].genes[neighborCell.activeGene].growDirections;
 
@@ -253,7 +254,10 @@ bool CommandGrowHere(uint2 cellPos, uint cellIdx, inout Cell cell) {
         cell = CreateCell(cellPos, typeToCreate, fromNeighbor, dir, neighborCell.genomeId);
         SetInFlow(cell, dir, typeToCreate >= CELLTYPE_SPROUT);
         SetOutFlow(cell, dir, typeToCreate < CELLTYPE_SPROUT);
-        InterlockedAdd(_CommandBuffer[neighborIdx].executionFlags, 1u << fromNeighbor);
+
+        uint2 realNeighborPos = ShiftCoord(cellPos, dir);
+        uint realNeighborIdx = PosToIdx(realNeighborPos);
+        InterlockedAdd(_CommandBuffer[realNeighborIdx].executionFlags, 1u << fromNeighbor);
     }
     return true;
 }
@@ -265,14 +269,15 @@ bool CommandMove(uint2 cellPos, uint cellIdx, inout Cell cell, CommandEntry comm
 
     return true;
 }
-bool CommandMoveHere(uint2 cellPos, uint cellIdx, inout Cell cell) {
+bool CommandMoveHere(uint2 cellPos, uint2 groupThreadID, inout Cell cell) {
     if (cell.cellType > 0) return false;
 
+    uint2 cachePos = CachePos(groupThreadID);
     // check neighbors for grow command
     uint neighborCommands = 0;
     for (int dir = 0; dir < 4; ++dir) {
-        READ_NEIGHBOR_CELL(cellPos, dir);
-        CommandEntry neighborCmd = _CommandBuffer[neighborIdx];
+        READ_CACHED_NEIGHBOR_CELL(cachePos, dir);
+        READ_CACHED_COMMAND(neighborPos);
 
         if (neighborCmd.commandId != CMD_MOVE || cell.cellType > 0
             || neighborCell.cellType < CELLTYPE_SPROUT
@@ -280,7 +285,10 @@ bool CommandMoveHere(uint2 cellPos, uint cellIdx, inout Cell cell) {
 
         neighborCommands += dir;
         cell = neighborCell;
-        _CommandBuffer[neighborIdx].executionFlags = neighborCell.direction + 1;
+
+        uint2 realNeighborPos = ShiftCoord(cellPos, dir);
+        uint realNeighborIdx = PosToIdx(realNeighborPos);
+        _CommandBuffer[realNeighborIdx].executionFlags = neighborCell.direction + 1;
     }
 
     return true;
@@ -479,14 +487,23 @@ void DecisionKernel(uint3 id : SV_DispatchThreadID)
 
 // Per-command kernels: each executes its command only if command buffer matches
 #define DECL_CMD_KERNEL(ID, executeOnNonCommandCells, cellTypes) \
-[numthreads(8,8,1)] \
-void Cmd_##ID(uint3 dtid : SV_DispatchThreadID) \
+[numthreads(GROUP_SIZE,GROUP_SIZE,1)] \
+void Cmd_##ID(uint3 dtid : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID) \
 { \
+    if (executeOnNonCommandCells) CacheCellsAndCommandsAround(groupThreadID.xy, groupID.xy); \
     if (dtid.x >= _Width || dtid.y >= _Height) return; \
     uint2 cellPos = dtid.xy; \
     uint cellIdx = PosToIdx(cellPos); \
-    Cell cell = _CellsRO[cellIdx]; \
-    CommandEntry ce = _CommandBuffer[cellIdx]; \
+    Cell cell; \
+    CommandEntry ce; \
+    if (executeOnNonCommandCells) { \
+        uint2 cachePos = CachePos(groupThreadID.xy); \
+        cell = CellCache[cachePos.x][cachePos.y]; \
+        ce = CommandCache[cachePos.x][cachePos.y]; \
+    } else { \
+        cell = _CellsRO[cellIdx]; \
+        ce = _CommandBuffer[cellIdx]; \
+    } \
     if (((1 << cell.cellType) & cellTypes) == 0 \
         || (ce.commandId != (ID) && !executeOnNonCommandCells)) \
         return; \
@@ -494,9 +511,9 @@ void Cmd_##ID(uint3 dtid : SV_DispatchThreadID) \
     /* call the relevant command by ID */ \
     /* map IDs to functions */ \
     if ((ID) == 2u) { res = CommandSkip(); } \
-    else if ((ID) == 301u) { CommandGrowHere(cellPos, cellIdx, cell); } \
+    else if ((ID) == 301u) { CommandGrowHere(cellPos, groupThreadID.xy, cell); } \
     else if ((ID) == 3u) { res = CommandGrow(cellPos, cellIdx, cell, ce); } \
-    else if ((ID) == 401u) { CommandMoveHere(cellPos, cellIdx, cell); } \
+    else if ((ID) == 401u) { CommandMoveHere(cellPos, groupThreadID.xy, cell); } \
     else if ((ID) == 4u) { res = CommandMove(cellPos, cellIdx, cell, ce); } \
     else if ((ID) == 5u) { res = CommandRotate(cellPos, cellIdx, cell, DIR_R); } \
     else if ((ID) == 6u) { res = CommandRotate(cellPos, cellIdx, cell, DIR_L); } \

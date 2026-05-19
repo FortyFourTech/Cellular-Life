@@ -36,3 +36,7 @@ RWStructuredBuffer<Genome> _Genomes; // packed genomes
 RWStructuredBuffer<CommandEntry> _CommandBuffer;
 RWStructuredBuffer<bool> _KillCells;
 RWStructuredBuffer<uint2> _Debug;
+
+// Сама быстрая память (LDS)
+groupshared Cell CellCache[CACHE_SIZE][CACHE_SIZE];
+groupshared CommandEntry CommandCache[CACHE_SIZE][CACHE_SIZE];
