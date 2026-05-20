@@ -67,8 +67,10 @@ public class WorldRenderer : MonoBehaviour, IMaterialModifier
     }
 
     public void SetRenderMode(RenderMode mode) {
+        var prevMode = _renderMode;
         _renderMode = mode;
-        _imageRenderer.SetMaterialDirty();
+        if (prevMode != _renderMode)
+            _imageRenderer.SetMaterialDirty();
     }
 
     public Material GetModifiedMaterial(Material baseMaterial)

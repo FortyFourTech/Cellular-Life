@@ -70,10 +70,10 @@ public class WorldSimulation : MonoBehaviour
     struct ResourceDelta { public uint x; public uint y; public float delta; public uint pad; }
     struct KillCoord { public uint x; public uint y; public uint pad0; public uint pad1; }
     struct SetCell { public uint x; public uint y; public uint type; public uint pad0; }
-    System.Collections.Generic.List<ResourceDelta> organicsPending = new System.Collections.Generic.List<ResourceDelta>();
-    System.Collections.Generic.List<ResourceDelta> energyPending = new System.Collections.Generic.List<ResourceDelta>();
-    System.Collections.Generic.List<KillCoord> killPending = new System.Collections.Generic.List<KillCoord>();
-    System.Collections.Generic.List<SetCell> setPending = new System.Collections.Generic.List<SetCell>();
+    List<ResourceDelta> organicsPending = new ();
+    List<ResourceDelta> energyPending = new ();
+    List<KillCoord> killPending = new ();
+    List<SetCell> setPending = new ();
 
     public RenderTexture SoilTexture => _soilTex.ReadResource;
 
