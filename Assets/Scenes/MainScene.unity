@@ -1464,17 +1464,17 @@ MonoBehaviour:
     _Timestamp: 0
     _Rand: 0
     _Sunlight: 5
-    _DiffusionRate: 0.03
+    _DiffusionRate: 0.05
     _CriticalOrg: 5
     _CriticalNrg: 5
   CellConstants:
     OrgAbsorbSpeed: 0.05
     NrgAbsorbSpeed: 0.05
-    GrowNrg: 0.5
+    GrowNrg: 0.3
     LifeNrgSpend: 0.07
     LifeNrgSpendSeed: 0.005
     NrgTransportSpeed: 3
-    NrgTransportMin: 0.5
+    NrgTransportMin: 0.35
     CellOrgCost: 0.1
 --- !u!1 &901811328
 GameObject:
